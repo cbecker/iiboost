@@ -83,7 +83,7 @@ extern "C"
 			}
 
 			// debug
-			rois[0].rawImage.save("/tmp/test.nrrd");
+			// rois[0].rawImage.save("/tmp/test.nrrd");
 
 			BoosterInputData bdata;
 			bdata.init( &allROIs );

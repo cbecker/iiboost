@@ -32,9 +32,9 @@ Choose to build the Python Wrapper (`BUILD_PYTHON_WRAPPER` set to `ON`),
 specify the path to ITK 4.0 (`ITK_DIR`) and set `CMAKE_BUILD_TYPE` to `RELEASE`.
 
 Finally, if you are using *ILASTIK*, set `PYTHON_BASE_PATH` to the path where ilastik is.
-Otherwise, point it to your root folder (eg `/`).
+Otherwise, point it to your root usr folder (eg `/usr`).
 
-You can now compile with make, and try the python wrapper with
+You can now compile with `make`, and try the python wrapper with
 ```bash
   python2 python_test_class.py
 ```

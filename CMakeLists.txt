@@ -21,7 +21,7 @@ set(RANDOMLIB_INCPATH "${RANDOMLIB_DESTPATH}/include")
 # If you want to comile the python wrapper, for Ilastik point PYTHON_BASE_PATH it to where Ilastik is
 option(BUILD_PYTHON_WRAPPER "Build the python wrapper" ON)
 if (BUILD_PYTHON_WRAPPER)
-    set(PYTHON_BASE_PATH "/data/phd/software/ilastik-1.0.3-Linux" CACHE FILEPATH "Python: path to base system")
+    set(PYTHON_BASE_PATH "/usr/" CACHE FILEPATH "Python: path to base system")
     
     include_directories( ${PYTHON_BASE_PATH}/lib/python2.7/site-packages/numpy/core/include/numpy/ )
     include_directories( ${PYTHON_BASE_PATH}/lib/python2.7/dist-packages/numpy/core/include/numpy/ )

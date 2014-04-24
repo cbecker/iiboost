@@ -15,7 +15,9 @@ img = joblib.load("img.jlb")
 
 
 model = Booster()
-model.train(img, gt, numStumps=200)
+
+# Train: note that we pass a list of stacks
+model.train( [img], [gt], numStumps=200, debugOutput=True)
 
 pred = model.predict( img )
 

@@ -19,6 +19,17 @@
 import numpy as np
 import ctypes
 
+# gets 'prop' from every element in L
+#  and puts it in an array of element type cArrayElType
+def propToCArray( L, prop, cArrayElType ):
+	N = len(L)
+	arr = (cArrayElType * N)()
+
+	for idx,e in enumerate(L):
+		arr[idx] = cArrayElType( eval( "e." + prop ) )
+
+	return arr
+
 class Booster:
 	""" Booster class based on context cue boosting """
 
@@ -35,18 +46,35 @@ class Booster:
 		self.libPtr = ctypes.CDLL( self.libName )
 		self.modelPtr = None
 
-	def train( self, imgStack, gtStack, numStumps, debugOutput = False ):
-		""" Train requires the image itself (uint8) and ground truth stack (uint8) """
-		if imgStack.shape != gtStack.shape:
-			raise RuntimeError("image and ground truth must be of same size")
+	def train( self, imgStackList, gtStackList, numStumps, debugOutput = False ):
+		""" Train a boosted classifier """
+		"""   imgStackList: list of images, of type uint8 """
+		"""   gtStackList:  list of GT, of type uint8. Negative = 1, Positive = 2, Ignore = else """
+		"""   numStumps:    integer """
+		""" WARNING: it assumes stacks are in C ordering """
 
-		if (imgStack.dtype != np.dtype("uint8")) or (gtStack.dtype != np.dtype("uint8")):
-			raise RuntimeError("image and ground truth must be of uint8 type")
+		if (type(imgStackList) != list) or (type(gtStackList) != list):
+			raise RuntimeError("image and gt stack list must of be of type LIST")
+
+		# check shape/type of img and gt
+		if len(imgStackList) != len(gtStackList):
+			raise RuntimeError("image and gt stack list must of be of same size")
+
+		for img,gt in zip(imgStackList, gtStackList):
+			if img.shape != gt.shape:
+				raise RuntimeError("image and ground truth must be of same size")
+
+			if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")):
+				raise RuntimeError("image and ground truth must be of uint8 type")
 
 		# 'mangle' dimensions to deal with storage order (assuming C-style)
-		width = imgStack.shape[2]
-		height = imgStack.shape[1]
-		depth = imgStack.shape[0]
+		width = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
+		height = propToCArray( imgStackList, "shape[1]", ctypes.c_int )
+		depth = propToCArray( imgStackList, "shape[0]", ctypes.c_int )
+
+		# C array of pointers
+		imgs = propToCArray( imgStackList, "ctypes.data", ctypes.c_void_p )
+		gts = propToCArray(  gtStackList,  "ctypes.data", ctypes.c_void_p )
 
 		if debugOutput:
 			dbgOut = ctypes.c_int(1)
@@ -54,9 +82,10 @@ class Booster:
 			dbgOut = ctypes.c_int(0)
 
 		self.modelPtr = ctypes.c_void_p(
-						self.libPtr.train( ctypes.c_void_p(imgStack.ctypes.data), 
-										ctypes.c_void_p(gtStack.ctypes.data), 
-										ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+							self.libPtr.train( 
+										imgs, gts,
+										width, height, depth,
+										ctypes.c_int( len(imgs) ),
 										ctypes.c_int(numStumps), dbgOut ) )
 
 	def predict( self, imgStack ):

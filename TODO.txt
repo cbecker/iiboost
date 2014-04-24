@@ -1,6 +1,6 @@
 - speed-up: sort samples by ROI idx
 
-- python: multiple ROIs
+- python: multiple ROIs for prediction
 - python: save/load models
 - python: check that C order is passed in train() and predict()
 - python: fix exceptions (now segfaulting)

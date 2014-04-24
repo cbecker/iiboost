@@ -53,29 +53,37 @@ extern "C"
 		adaboost.predict( &allROIs, &predMatrix );
 	}
 
+	// input: multiple imgPtr, gtPtr (arrays of pointers)
+	//		  multiple img sizes
 	// returns a BoosterModel *
-	void * train( ImagePixelType *imgPtr, GTPixelType *gtPtr, 
-				  int width, int height, int depth,
+	// -- BEWARE: this function is a mix of dirty tricks right now
+	void * train( ImagePixelType **imgPtr, GTPixelType **gtPtr, 
+				  int *width, int *height, int *depth,
+				  int numStacks,
 				  int numStumps, int debugOutput )
 	{
 		BoosterModel *modelPtr = 0;
 
 		try
 		{
-			ROIData roi;
-			roi.init( imgPtr, gtPtr, 0, 0, width, height, depth );
-
-			roi.rawImage.save("/tmp/test.nrrd");
-
-			// raw image to integral image
-			ROIData::IntegralImageType ii;
-			ii.compute( roi.rawImage );
-			roi.addII( ii.internalImage().data() );
-
-			//qFatal("Hey!");
-
+			ROIData rois[numStacks];					// TODO: not C++99 compatible?
+			ROIData::IntegralImageType ii[numStacks];	// TODO: remove
 			MultipleROIData allROIs;
-			allROIs.add( &roi );
+
+			for (int i=0; i < numStacks; i++)
+			{
+				rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+
+				// raw image to integral image
+				// TODO: this should be removed and passed directly to train()
+				ii[i].compute( rois[i].rawImage );
+				rois[i].addII( ii[i].internalImage().data() );
+
+				allROIs.add( &rois[i] );
+			}
+
+			// debug
+			rois[0].rawImage.save("/tmp/test.nrrd");
 
 			BoosterInputData bdata;
 			bdata.init( &allROIs );

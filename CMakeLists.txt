@@ -80,7 +80,7 @@ endif()
 
 include_directories( ${ContextCueBoosting_SOURCE_DIR} )
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/extra )
-include_directories( ${ContextCueBoosting_SOURCE_DIR}/3rdparty/eigen )
+include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 
 add_executable( ccboost test.cpp slic/LKM.cpp slic/utils.cpp )
 target_link_libraries( ccboost ${ITK_LIBRARIES} libconfig randomlib rt )

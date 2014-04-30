@@ -17,7 +17,7 @@ img = joblib.load("img.jlb")
 model = Booster()
 
 # Train: note that we pass a list of stacks
-model.train( [img], [gt], numStumps=200, debugOutput=True)
+model.train( [img], [gt], numStumps=100, debugOutput=True)
 
 pred = model.predict( img )
 
@@ -35,3 +35,8 @@ plt.imshow(pred[:,:,10],cmap="gray")
 plt.title("Click on the image to exit")
 
 plt.ginput(1)
+
+ss = model.serialize()
+model.deserialize( ss )
+
+#print "Serialization string: " + model.serialize()

@@ -28,6 +28,30 @@ extern "C"
 		delete ((BoosterModel *)modelPtr);
 	}
 
+	// returns py string object
+	PyObject * serializeModel( void *modelPtr )
+	{
+		std::string str;
+		((BoosterModel *)modelPtr)->serializeToString( &str );
+
+		return PyString_FromString( str.c_str() );
+	}
+
+	// create model from serialized string
+	// returns 0 on error
+	void * deserializeModel( const char *modelString )
+	{
+		BoosterModel *model = new BoosterModel();
+
+		if (!model->deserializeFromString( modelString ))
+		{
+			delete model;
+			return 0;
+		}
+
+		return model;
+	}
+
 	// assumes that predPtr is already allocated, of same size as imgPtr
 	void predict( void *modelPtr, ImagePixelType *imgPtr, int width, int height, int depth, PredictionPixelType *predPtr )
 	{

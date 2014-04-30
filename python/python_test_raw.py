@@ -28,6 +28,10 @@ imgs = [joblib.load("img.jlb")]
 print "--- Loading lib ---"
 boostLib = ctypes.CDLL("libiiboost_python.so")
 
+# this returns a python string
+boostLib.serializeModel.restype = ctypes.py_object
+
+
 print "--- Calling train() ---"
 
 # we need to pass an array to the C call
@@ -48,6 +52,8 @@ model = ctypes.c_void_p(
  					ctypes.c_int(1),
  					ctypes.c_int(numStumps),
  					ctypes.c_int(debugOutput) ) )
+
+serStr = ctypes.py_object( boostLib.serializeModel( model ) )
 
 # pre-alloc prediction
 pred = np.empty_like( imgs[0], dtype=np.dtype("float32") )

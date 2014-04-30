@@ -19,6 +19,8 @@
 import numpy as np
 import ctypes
 
+from exceptions import RuntimeError
+
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
 def propToCArray( L, prop, cArrayElType ):
@@ -45,6 +47,30 @@ class Booster:
 	def __init__(self):
 		self.libPtr = ctypes.CDLL( self.libName )
 		self.modelPtr = None
+
+		self.libPtr.serializeModel.restype = ctypes.py_object
+
+	# returns a string representation of the model
+	def serialize( self ):
+		if self.modelPtr == None:
+			raise RuntimeError("Tried to serialize(), but no model available.")
+
+		return self.libPtr.serializeModel( self.modelPtr )
+
+	# construct model from string representation
+	def deserialize( self, modelString ):
+		if type(modelString) != str:
+			raise RuntimeError("Tried to deserialize(), but modelString must be a string.")
+
+		newModelPtr = ctypes.c_void_p( 
+							self.libPtr.deserializeModel( ctypes.c_char_p(modelString) ) )
+
+		if newModelPtr.value == None:
+			raise RuntimeError("Error deserializing.")
+
+		self.freeModel()
+		self.modelPtr = newModelPtr
+
 
 	def train( self, imgStackList, gtStackList, numStumps, debugOutput = False ):
 		""" Train a boosted classifier """
@@ -81,6 +107,8 @@ class Booster:
 		else:
 			dbgOut = ctypes.c_int(0)
 
+		self.freeModel() # we don't want a memory leak
+
 		self.modelPtr = ctypes.c_void_p(
 							self.libPtr.train( 
 										imgs, gts,
@@ -89,6 +117,10 @@ class Booster:
 										ctypes.c_int(numStumps), dbgOut ) )
 
 	def predict( self, imgStack ):
+
+		if self.modelPtr == None:
+			raise RuntimeError("Tried to predict(), but no model available.")
+
 		""" returns confidence stack of pixel type float """
 		if imgStack.dtype != np.dtype("uint8"):
 			raise RuntimeError("image must be of uint8 type")
@@ -108,10 +140,13 @@ class Booster:
 
 		return pred
 
+	# if model is not null, free it
+	def freeModel(self):
+		if self.modelPtr != None:
+			self.libPtr.freeModel( self.modelPtr )
+			self.modelPtr = None
 
 	# we need a proper destructor to delete the C pointer
 	# (because we love hacking code and dirty pointers)
 	def __del__(self):
-		if self.modelPtr != None:
-			self.libPtr.freeModel( self.modelPtr )
-			self.modelPtr = None
+		self.freeModel()

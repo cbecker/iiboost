@@ -87,8 +87,8 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
 add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
 
-add_executable( ccboost test.cpp slic/LKM.cpp slic/utils.cpp )
-target_link_libraries( ccboost ${ITK_LIBRARIES} libconfig randomlib rt )
+add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
+target_link_libraries( test ${ITK_LIBRARIES} libconfig randomlib rt )
 
 ## PYTHON wrapper
 if (BUILD_PYTHON_WRAPPER)

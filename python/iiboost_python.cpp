@@ -106,9 +106,6 @@ extern "C"
 				allROIs.add( &rois[i] );
 			}
 
-			// debug
-			// rois[0].rawImage.save("/tmp/test.nrrd");
-
 			BoosterInputData bdata;
 			bdata.init( &allROIs );
 			bdata.showInfo();
@@ -121,9 +118,12 @@ extern "C"
 			// create by copying
 			modelPtr = new BoosterModel( adaboost.model() );
 		}
-		catch(std::exception const& e)
+		catch( std::exception &e )
 		{
-			PyErr_SetString(PyExc_RuntimeError, e.what());
+			printf("Error training: %s\n", e.what());
+			delete modelPtr;
+			
+			return 0;
 		}
 
 		return modelPtr;

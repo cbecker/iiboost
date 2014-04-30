@@ -107,14 +107,18 @@ class Booster:
 		else:
 			dbgOut = ctypes.c_int(0)
 
-		self.freeModel() # we don't want a memory leak
-
-		self.modelPtr = ctypes.c_void_p(
+		newModelPtr = ctypes.c_void_p(
 							self.libPtr.train( 
 										imgs, gts,
 										width, height, depth,
 										ctypes.c_int( len(imgs) ),
 										ctypes.c_int(numStumps), dbgOut ) )
+
+		if newModelPtr.value == None:
+			raise RuntimeError("Error training model.")
+
+		self.freeModel()
+		self.modelPtr = newModelPtr
 
 	def predict( self, imgStack ):
 

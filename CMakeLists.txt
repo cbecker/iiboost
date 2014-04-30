@@ -43,26 +43,11 @@ add_library(randomlib STATIC IMPORTED DEPENDS)
 add_dependencies( randomlib randomlibBuild)
 set_property(TARGET randomlib PROPERTY IMPORTED_LOCATION ${RANDOMLIB_LIB})
 
-## LIBCONFIG
-set(LIBCONFIG_DESTPATH "${CMAKE_BINARY_DIR}/libconfig")
-set(LIBCONFIG_LIB "${LIBCONFIG_DESTPATH}/lib/libconfig++.a")
-set(LIBCONFIG_INCPATH "${LIBCONFIG_DESTPATH}/include")
-
-externalproject_add( 
-    configlibBuild
-    GIT_REPOSITORY https://bitbucket.org/cbecker/libconfig.git
-    CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${LIBCONFIG_DESTPATH}"
-    UPDATE_COMMAND "" )
-
-add_library(libconfig STATIC IMPORTED)
-add_dependencies( libconfig configlibBuild)
-set_property(TARGET libconfig PROPERTY IMPORTED_LOCATION ${LIBCONFIG_LIB})
-
 
 # Needed for log loss
 #set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} /home/cjbecker/filer/bitbucket/liblbfgs-1.10/lib/.libs)
 
-include_directories(${LIBCONFIG_INCPATH} ${RANDOMLIB_INCPATH})
+include_directories(${RANDOMLIB_INCPATH})
 
 
 # Flags
@@ -88,12 +73,12 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
 add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
 
 add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
-target_link_libraries( test ${ITK_LIBRARIES} libconfig randomlib rt )
+target_link_libraries( test ${ITK_LIBRARIES} randomlib rt )
 
 ## PYTHON wrapper
 if (BUILD_PYTHON_WRAPPER)
     add_library( iiboost_python SHARED python/iiboost_python.cpp slic/LKM.cpp slic/utils.cpp )
-    target_link_libraries( iiboost_python ${ITK_LIBRARIES} libconfig randomlib rt python2.7 )
+    target_link_libraries( iiboost_python ${ITK_LIBRARIES} randomlib rt python2.7 )
 
     # copy python test files
     configure_file("testData/img.jlb" "img.jlb" COPYONLY)

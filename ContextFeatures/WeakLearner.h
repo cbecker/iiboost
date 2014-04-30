@@ -22,6 +22,9 @@
 #include <string>
 #include "globaldefs.h"
 
+// for serialization
+#include <rapidjson/document.h>
+
 /**
  * Weak learner class. Uses the poses from ContextRelativePoses.h
  *  and provides training and prediction.
@@ -47,6 +50,32 @@ public:
     }
 
     unsigned int poseIdx() const { return mPoseIdx; }
+
+    // JSON serialization, requires passing the allocator bcos of rapidjson
+    void serialize( rapidjson::Value &obj, 
+                    rapidjson::Document::AllocatorType& allocator ) const
+    {
+        obj.SetObject();
+
+        obj.AddMember("threshold", mThreshold, allocator);
+        obj.AddMember("invert", mInvert, allocator);
+        obj.AddMember("channel", mChannel, allocator);
+        obj.AddMember("poseIdx", mPoseIdx, allocator);
+        obj.AddMember("description", mDescription.c_str(), allocator);
+    }
+
+    // JSON deserialization
+    bool deserialize( const rapidjson::Value &obj )
+    {
+        if (!obj.IsObject())
+            return false;
+
+        mThreshold = obj["threshold"].GetDouble();
+        mInvert = obj["invert"].GetBool();
+        mChannel = obj["channel"].GetInt();
+        mPoseIdx = obj["poseIdx"].GetInt();
+        mDescription = obj["description"].GetString();
+    }
 
 #ifdef LIBCONFIGXX_VER_MAJOR
     void save( libconfig::Setting &s ) const

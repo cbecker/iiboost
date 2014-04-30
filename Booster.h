@@ -25,15 +25,8 @@
 #include "utils/DiscreteRandomSampler.h"
 #include <omp.h>
 
-// contains weak learner and weight
-struct BoosterComponent
-{
-	WeakLearner wl;
-	double		alpha;
-
-	BoosterComponent( const WeakLearner &_wl, const double _alpha ) :
-		wl(_wl), alpha(_alpha) {}
-};
+// we need the boosting model
+#include "BoosterModel.h"
 
 // an operator to speed up prediction
 template<typename PredType>
@@ -53,24 +46,6 @@ struct BoosterPredictOperator
 	}
 };
 
-// a collection of BoosterComponent
-struct BoosterModel
-{
-	std::vector<BoosterComponent> data;
-
-	void add( const WeakLearner &wl, const double alpha )
-	{
-		data.push_back( BoosterComponent(wl, alpha) );
-	}
-
-	void clear() { data.clear(); }
-	unsigned size() const { return data.size(); }
-
-	inline const BoosterComponent &operator [](unsigned idx) const
-	{
-		return data[idx];
-	}
-};
 
 /**
  * Main boosting class
@@ -112,6 +87,20 @@ public:
 	{
 		mModel = model;
 	}
+
+	/// BEGIN SAVE-LOAD FUNCTIONS ///
+	bool saveModelToFile( const std::string &fName ) const
+	{	return mModel.serializeToFile(fName); }
+
+	bool loadModelFromFile( const std::string &fName )
+	{	return mModel.deserializeFromFile(fName); }
+
+	void saveModelToString( std::string *destStr ) const
+	{	mModel.serializeToString( destStr ); }
+
+	bool loadModelFromString( const std::string &data )
+	{	return mModel.deserializeFromString(data); }
+	/// END SAVE-LOAD FUNCTIONS ///
 
 
 	void doWeightedResamplingPerClass( const WeightsArrayType &weights, 

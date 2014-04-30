@@ -82,6 +82,11 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR} )
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/extra )
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 
+# RAPIDJSON, and make assert throw exception rather than raw assert
+#  TODO: may need correction to include <stdexcept>
+include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
+add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
+
 add_executable( ccboost test.cpp slic/LKM.cpp slic/utils.cpp )
 target_link_libraries( ccboost ${ITK_LIBRARIES} libconfig randomlib rt )
 

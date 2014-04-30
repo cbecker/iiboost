@@ -91,5 +91,9 @@ int main()
 	qDebug("Elapsed: %f", timer.elapsed());
 	predImg.save("/tmp/test.nrrd");
 
+	// save JSON model
+	if (!adaboost.saveModelToFile( "/tmp/model.json" ))
+		std::cout << "Error saving JSON model" << std::endl;
+
 	return 0;
 }

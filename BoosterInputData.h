@@ -84,7 +84,7 @@ struct BoosterInputData
 	{
 		qDebug("--- BoosterInputData ---");
 		qDebug("zAnisotropyFactor: %.4f", imgData->zAnisotropyFactor);
-		qDebug("\tNum ROIs: %u", imgData->ROIs.size());
+		qDebug("\tNum ROIs: %lu", imgData->ROIs.size());
 
 		unsigned nPos = 0, nNeg = 0;
 		for (unsigned i=0; i < sampLabels.size(); i++)

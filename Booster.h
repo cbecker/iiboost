@@ -127,7 +127,7 @@ public:
 					negIdx.push_back(i);
 
 			cachedSize = N;
-			qDebug("Rand sample, numPos: %u, numNeg: %u", posIdx.size(), negIdx.size());
+			qDebug("Rand sample, numPos: %lu, numNeg: %lu", posIdx.size(), negIdx.size());
 		}
 
 		// extract weights
@@ -283,7 +283,7 @@ public:
 			double weakErr = WeakLearnerSearcher( mPoses, subsampledBID, subsampledWeights, mWeakLearnersPerIter ).learn( newWL );
 
 			if (mShowDebugInfo)
-				qDebug("Weak learner %d: %f, %s", weakErr, iter, newWL.getStringDescription().c_str());
+				qDebug("Weak learner %d: %f, %s", iter, weakErr, newWL.getStringDescription().c_str());
 
 			// predict weak learner on all data
 			newWL.classifyMultipleROIs( mPoses, bid, weakPred, numThreads );

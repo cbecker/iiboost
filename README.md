@@ -29,7 +29,9 @@ Now configure with ccmake:
 ```
 
 Choose to build the Python Wrapper (`BUILD_PYTHON_WRAPPER` set to `ON`),
-specify the path to ITK 4.0 (`ITK_DIR`) and set `CMAKE_BUILD_TYPE` to `RELEASE`.
+specify the path to ITK 4.5 (`ITK_DIR`) and set `CMAKE_BUILD_TYPE` to `RELEASE`.
+
+(Make sure ITK was compiled with `-fPIC` in CXXFLAGS)
 
 Finally, if you are using *ILASTIK*, set `PYTHON_BASE_PATH` to the path where ilastik is.
 Otherwise, point it to your root usr folder (eg `/usr`).

@@ -5,12 +5,14 @@ cmake_minimum_required (VERSION 2.8)
 include(ExternalProject)
 
 ## Needs ITK at least v4
-find_package(ITK REQUIRED)
+find_package(ITK REQUIRED NO_DEFAULT_PATH)
 include(${ITK_USE_FILE})
 
 if( "${ITK_VERSION_MAJOR}" LESS 4 )
   message(FATAL_ERROR "ITK version 4 required")
 endif()
+
+link_directories( ${ITK_LIBRARY_DIRS} )
 
 ## RANDOMLIB
 set(RANDOMLIB_DESTPATH "${CMAKE_BINARY_DIR}/randomlib")
@@ -52,11 +54,14 @@ include_directories(${RANDOMLIB_INCPATH})
 
 # Flags
 # static release is pretty generic, possibly not the fastest one though
-set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-fopenmp -O3")
+set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-std=c++11 -fopenmp -O3")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE_ALLSTATIC "-static-libgcc -static-libstdc++ -static")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-fopenmp -O3 -march=native -mtune=native")
-set(CMAKE_CXX_FLAGS_DEBUG "-fopenmp -msse2 -msse3 -mssse3 -march=native -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fopenmp -O3 -march=native -mtune=native")
+set(CMAKE_CXX_FLAGS_DEBUG "-std=c++11 -fopenmp -msse2 -msse3 -mssse3 -march=native -g")
+
+# C++11 with ITK
+add_definitions(-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0 -DVCL_CAN_STATIC_CONST_INIT_INT=0)
 
 if (NOT CMAKE_BUILD_TYPE)
 	message(STATUS "No build type selected, default to Release")
@@ -72,13 +77,17 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
 add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
 
+# Common libs needed for linking
+set(COMMON_LIBS ${ITK_LIBRARIES} randomlib rt stdc++)  # not sure why we need stdc++ here
+
+
 add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
-target_link_libraries( test ${ITK_LIBRARIES} randomlib rt )
+target_link_libraries( test ${COMMON_LIBS} )
 
 ## PYTHON wrapper
 if (BUILD_PYTHON_WRAPPER)
     add_library( iiboost_python SHARED python/iiboost_python.cpp slic/LKM.cpp slic/utils.cpp )
-    target_link_libraries( iiboost_python ${ITK_LIBRARIES} randomlib rt python2.7 )
+    target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7)
 
     # copy python test files
     configure_file("testData/img.jlb" "img.jlb" COPYONLY)
@@ -89,3 +98,9 @@ if (BUILD_PYTHON_WRAPPER)
     configure_file("python/IIBoost.py" "IIBoost.py" COPYONLY)
 endif()
 
+
+## extra tests
+if(EXISTS "${ContextCueBoosting_SOURCE_DIR}/testDescriptor.cpp")
+    add_executable( testDescriptor testDescriptor.cpp slic/LKM.cpp slic/utils.cpp )
+    target_link_libraries( testDescriptor ${COMMON_LIBS} )
+endif()

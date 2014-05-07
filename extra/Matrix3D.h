@@ -488,6 +488,7 @@ public:
         }
         catch( std::exception &e )
         {
+            qDebug("Exception while saving: %s", e.what());
             return false;
         }
 

@@ -21,6 +21,7 @@
 
 #include "ROIData.h"
 #include <Eigen/Dense>
+#include "globaldefs.h"
 
 // contains image data, integral images, etc
 struct MultipleROIData

@@ -83,8 +83,6 @@ public:
         }
     }
 
-    IntegralImage() {}
-
     Matrix3D<T> &internalImage() { return mData; }
 
     template<typename T2>

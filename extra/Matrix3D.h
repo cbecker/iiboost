@@ -38,13 +38,18 @@
 template<typename T>
 class Matrix3D
 {
+private:
+    T *mData;
+    unsigned int mWidth, mHeight, mDepth;
+    unsigned int mSz; // this is a cached version of mWidth*mHeight
+    unsigned int mNumElem;
+    bool    mKeepOnDestr;  // if data should not be deleted upon object destruction
+
+
 public:
     typedef itk::Image<T, 3> ItkImageType;
 private:
     typedef unsigned int     DefaultLabelType;
-    
-    Matrix3D( const Matrix3D<T>& rhs );
-	Matrix3D<T>& operator=( const Matrix3D<T>& rhs );
 	
 public:
     typedef T DataType;
@@ -54,6 +59,32 @@ public:
     Matrix3D( unsigned int w, unsigned int h, unsigned int d ) {
         mData = 0; mKeepOnDestr = false;
         realloc(w,h,d);
+    }
+
+    // no direct copy constructor, etc
+    Matrix3D( const Matrix3D<T>& rhs ) = delete;
+    Matrix3D<T>& operator=( const Matrix3D<T>& rhs ) = delete;
+
+    // though we provide move semantics
+    Matrix3D( Matrix3D<T>&& rhs )
+        : mData(rhs.mData), 
+          mWidth(rhs.mWidth), mHeight(rhs.mHeight), mDepth(rhs.mHeight),
+          mSz(rhs.mSz), mNumElem(rhs.mNumElem), mKeepOnDestr(rhs.mKeepOnDestr)
+    {
+        rhs.mData = 0;
+    }
+
+    Matrix3D<T>& operator=( Matrix3D<T>&& rhs )
+    {
+        mData = rhs.mData;
+        mWidth = rhs.mWidth;
+        mHeight = rhs.mHeight;
+        mDepth = rhs.mDepth;
+        mSz = rhs.mSz;
+        mNumElem = rhs.mNumElem;
+        mKeepOnDestr = rhs.mKeepOnDestr;
+
+        rhs.mData = 0;
     }
 
     // returns true if coords are of a valid pixel in the image
@@ -557,13 +588,6 @@ public:
 
         return true;
     }
-
-private:
-    T *mData;
-    unsigned int mWidth, mHeight, mDepth;
-    unsigned int mSz; // this is a cached version of mWidth*mHeight
-    unsigned int mNumElem;
-    bool    mKeepOnDestr;  // if data should not be deleted upon object destruction
 
     void allocateEmpty()
     {

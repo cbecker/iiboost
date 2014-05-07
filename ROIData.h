@@ -57,7 +57,7 @@ public:
     typedef IntegralImage<IntegralImagePixelType> IntegralImageType;
 
     // each integral image channel
-    std::vector< IntegralImageType * > integralImages;
+    std::vector< IntegralImageType > integralImages;
 
     // for now we need this to compute rotMatrices
     Matrix3D<ImagePixelType>  rawImage;
@@ -75,6 +75,36 @@ public:
 
 
 //////////////////////////////////////////////////////////////////////////////////////
+
+    // computes rotation matrices from raw image
+    void updateRotationMatrices( const float rotHessianSigma, const float zAnisotropyFactor )
+    {
+        // compute rotation matrix
+        rotMatricesImg = 
+            AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
+                rotHessianSigma, zAnisotropyFactor, rawImage.asItkImage(), 
+                AllEigenVectorsOfHessian::EByMagnitude );
+
+        // convert pointers
+        rotMatrices = (const RotationMatrixType *) rotMatricesImg->GetPixelContainer()->GetImportPointer();
+    }
+
+    // initialize from images, using move semantics
+    void init( Matrix3D<ImagePixelType> &&rawImg, 
+               Matrix3D<ImagePixelType> &&gtImg, 
+               const float rotHessianSigma = 3.5,
+               const float zAnisotropyFactor = 1.0 )
+    {
+        // in case we had other info before
+        freeIntegralImages();
+
+        rawImage = std::move(rawImg);
+        gtImage = std::move(gtImg);
+
+        updateRotationMatrices( rotHessianSigma, zAnisotropyFactor );
+    }
+
+    // initialize from pointers, which must remain valid
     void init( ImagePixelType *rawImgPtr, 
                ImagePixelType *gtImgPtr, 
                IntegralImagePixelType **intImgPtr,
@@ -89,50 +119,36 @@ public:
         rawImage.fromSharedData( rawImgPtr, width, height, depth );
         gtImage.fromSharedData( gtImgPtr, width, height, depth );
 
-        // compute rotation matrix
-        rotMatricesImg = 
-            AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
-                rotHessianSigma, zAnisotropyFactor, rawImage.asItkImage(), 
-                AllEigenVectorsOfHessian::EByMagnitude );
-
-        // convert pointers
-        rotMatrices = (const RotationMatrixType *) rotMatricesImg->GetPixelContainer()->GetImportPointer();
-
-        // std::cout << "M0: " << rotMatrices[5] << std::endl;
-        // {
-        //     ItkEigenVectorImageType::IndexType idx;
-        //     idx[0] = idx[1] = idx[2] = 0;
-
-        //     idx[0] = 5;
-
-        //     std::cout << rotMatricesImg->GetPixel(idx) << std::endl;
-        // }
-
+        updateRotationMatrices( rotHessianSigma, zAnisotropyFactor );
 
         for (unsigned i=0; i < numII; i++)
         {
-            integralImages.push_back( new IntegralImageType() );
-            integralImages.back()->fromSharedData( intImgPtr[i],
+            integralImages.push_back( IntegralImageType() );
+            integralImages.back().fromSharedData( intImgPtr[i],
                                                    width, 
                                                    height,
                                                    depth );
         }
     }
 
+    // it won't free pointer data
     void addII( IntegralImagePixelType *iiDataPtr )
     {
-        integralImages.push_back( new IntegralImageType() );
-        integralImages.back()->fromSharedData( iiDataPtr,
+        integralImages.push_back( IntegralImageType() );
+        integralImages.back().fromSharedData( iiDataPtr,
                                                rawImage.width(),
                                                rawImage.height(),
                                                rawImage.depth() );
     }
 
+    // to be used with std::move(), we love move semantics
+    void addII( IntegralImageType &&iiDataPtr )
+    {
+        integralImages.push_back( std::move(iiDataPtr) );
+    }
+
     void freeIntegralImages()
     {
-        for (unsigned i=0; i < integralImages.size(); i++)
-            delete integralImages[i];
-
         integralImages.clear();
     }
 
@@ -140,7 +156,6 @@ public:
     {
         freeIntegralImages();
     }
-
     
 };
 

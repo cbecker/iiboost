@@ -149,7 +149,7 @@ public:
         const unsigned roiNo = 0;
 
         const unsigned N = bid.sampROI.size();
-        const std::vector<IntegralImageType *> &ii = imgData.ROIs[roiNo]->integralImages;
+        const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
 
         if (mInvert == false)
         {
@@ -159,7 +159,7 @@ public:
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
-                if ( ii[mChannel]->centeredSumNormalized( box ) >= mThreshold )
+                if ( ii[mChannel].centeredSumNormalized( box ) >= mThreshold )
                     predOp(i, true);
                 else
                     predOp(i, false);
@@ -171,7 +171,7 @@ public:
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
-                if ( ii[mChannel]->centeredSumNormalized( box ) < mThreshold )
+                if ( ii[mChannel].centeredSumNormalized( box ) < mThreshold )
                     predOp(i, true);
                 else
                     predOp(i, false);
@@ -209,8 +209,8 @@ public:
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
                 const unsigned roiNo = bid.sampROI[i];
-                const std::vector<IntegralImageType *> &ii = imgData.ROIs[roiNo]->integralImages;
-                if ( ii[mChannel]->centeredSumNormalized( box ) >= mThreshold )
+                const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
+                if ( ii[mChannel].centeredSumNormalized( box ) >= mThreshold )
                     prediction[i] = 1;
                 else
                     prediction[i] = negativeValue;
@@ -223,9 +223,9 @@ public:
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
                 const unsigned roiNo = bid.sampROI[i];
-                const std::vector<IntegralImageType *> &ii = imgData.ROIs[roiNo]->integralImages;
+                const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
 
-                if ( ii[mChannel]->centeredSumNormalized( box ) < mThreshold )
+                if ( ii[mChannel].centeredSumNormalized( box ) < mThreshold )
                     prediction[i] = 1;
                 else
                     prediction[i] = negativeValue;
@@ -276,7 +276,7 @@ struct FeatureRawOperator
 
         const ROIData &roi = *mBI.imgData->ROIs[ mBI.sampROI[idx] ];
 
-        return roi.integralImages[mChannel]->centeredSumNormalized( box );
+        return roi.integralImages[mChannel].centeredSumNormalized( box );
     }
 
     inline IntegralImagePixelType value( unsigned int idx ) const

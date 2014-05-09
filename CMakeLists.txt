@@ -55,8 +55,8 @@ include_directories(${RANDOMLIB_INCPATH})
 set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-fopenmp -O3")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE_ALLSTATIC "-static-libgcc -static-libstdc++ -static")
 
-set(CMAKE_CXX_FLAGS_RELEASE "-fopenmp -O3 -march=native -mtune=native")
-set(CMAKE_CXX_FLAGS_DEBUG "-fopenmp -msse2 -msse3 -mssse3 -march=native -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-fopenmp -O3")
+set(CMAKE_CXX_FLAGS_DEBUG "-fopenmp -msse2 -msse3 -mssse3 -g")
 
 if (NOT CMAKE_BUILD_TYPE)
 	message(STATUS "No build type selected, default to Release")
@@ -73,12 +73,20 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
 add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
 
 add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
-target_link_libraries( test ${ITK_LIBRARIES} randomlib rt )
+if (APPLE)
+    target_link_libraries( test ${ITK_LIBRARIES} randomlib )
+else()
+    target_link_libraries( test ${ITK_LIBRARIES} randomlib rt)
+endif()
 
 ## PYTHON wrapper
 if (BUILD_PYTHON_WRAPPER)
     add_library( iiboost_python SHARED python/iiboost_python.cpp slic/LKM.cpp slic/utils.cpp )
-    target_link_libraries( iiboost_python ${ITK_LIBRARIES} randomlib rt python2.7 )
+    if (APPLE)
+        target_link_libraries( iiboost_python ${ITK_LIBRARIES} randomlib python2.7 )
+    else()
+        target_link_libraries( iiboost_python ${ITK_LIBRARIES} randomlib python2.7 rt)
+    endif()
 
     # copy python test files
     configure_file("testData/img.jlb" "img.jlb" COPYONLY)

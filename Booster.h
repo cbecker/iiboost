@@ -42,6 +42,7 @@ struct BoosterPredictOperator
 
 	inline void operator ()( const unsigned i, const bool what )
 	{
+		#pragma omp atomic
 		mPred.coeffRef(i) += what ? mAlpha : -mAlpha;
 	}
 };

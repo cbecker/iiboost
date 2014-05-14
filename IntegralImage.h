@@ -150,9 +150,9 @@ public:
                                     T mean, T invStd) const
     {
 		// approximating radius with a single coordinate!
-        double fR = 2*rx + 1;
+        const double fV = (2*rx + 1.0) * (2*ry + 1.0) * (2*rz + 1.0);
 
-        return ( centeredSum(x,y,z,rx,ry,rz) / (fR * fR * fR) - mean) * invStd;
+        return ( centeredSum(x,y,z,rx,ry,rz) / fV - mean) * invStd;
     }
     
     inline T centeredSum( const BoxPosition &box ) const
@@ -170,8 +170,7 @@ public:
     inline T centeredSumNormalized( unsigned int x, unsigned int y, unsigned int z,
                                     unsigned int rx, unsigned int ry, unsigned int rz) const
     {
-        // approximating radius with a single coordinate!
-        double fV = (2*rx + 1.0) * (2*ry + 1.0) * (2*rz + 1.0);
+        const double fV = (2*rx + 1.0) * (2*ry + 1.0) * (2*rz + 1.0);
 
         return centeredSum(x,y,z,rx,ry,rz) / fV;
     }

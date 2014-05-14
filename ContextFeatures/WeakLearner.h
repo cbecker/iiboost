@@ -149,7 +149,12 @@ public:
         const unsigned roiNo = 0;
 
         const unsigned N = bid.sampROI.size();
-        const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
+        const IntegralImageType &ii = imgData.ROIs[roiNo]->integralImages[mChannel];
+
+    #if USE_MEANVAR_NORMALIZATION
+        const std::vector<IntegralImagePixelType> &mean = imgData.ROIs[roiNo]->meanVarSubtract[mChannel];
+        const std::vector<IntegralImagePixelType> &invStd = imgData.ROIs[roiNo]->meanVarMult[mChannel];
+    #endif
 
         if (mInvert == false)
         {
@@ -159,7 +164,11 @@ public:
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
-                if ( ii[mChannel].centeredSumNormalized( box ) >= mThreshold )
+            #if USE_MEANVAR_NORMALIZATION
+                if ( ii.centeredSumNormalized( box, mean[bid.sampOffset[i]], invStd[bid.sampOffset[i]] ) >= mThreshold )
+            #else
+                if ( ii.centeredSumNormalized( box ) >= mThreshold )
+            #endif
                     predOp(i, true);
                 else
                     predOp(i, false);
@@ -170,8 +179,12 @@ public:
             {
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
-                
-                if ( ii[mChannel].centeredSumNormalized( box ) < mThreshold )
+            
+            #if USE_MEANVAR_NORMALIZATION
+                if ( ii.centeredSumNormalized( box, mean[bid.sampOffset[i]], invStd[bid.sampOffset[i]] ) < mThreshold )
+            #else
+                if ( ii.centeredSumNormalized( box ) < mThreshold )
+            #endif
                     predOp(i, true);
                 else
                     predOp(i, false);
@@ -209,8 +222,19 @@ public:
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
                 const unsigned roiNo = bid.sampROI[i];
-                const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
-                if ( ii[mChannel].centeredSumNormalized( box ) >= mThreshold )
+                const IntegralImageType &ii = imgData.ROIs[roiNo]->integralImages[mChannel];
+
+                #if USE_MEANVAR_NORMALIZATION
+                    const std::vector<IntegralImagePixelType> &mean = imgData.ROIs[roiNo]->meanVarSubtract[mChannel];
+                    const std::vector<IntegralImagePixelType> &invStd = imgData.ROIs[roiNo]->meanVarMult[mChannel];
+                #endif
+
+
+            #if USE_MEANVAR_NORMALIZATION
+                if ( ii.centeredSumNormalized( box, mean[bid.sampOffset[i]], invStd[bid.sampOffset[i]] ) >= mThreshold )
+            #else
+                if ( ii.centeredSumNormalized( box ) >= mThreshold )
+            #endif
                     prediction[i] = 1;
                 else
                     prediction[i] = negativeValue;
@@ -223,9 +247,18 @@ public:
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
                 const unsigned roiNo = bid.sampROI[i];
-                const std::vector<IntegralImageType> &ii = imgData.ROIs[roiNo]->integralImages;
+                const IntegralImageType &ii = imgData.ROIs[roiNo]->integralImages[mChannel];
 
-                if ( ii[mChannel].centeredSumNormalized( box ) < mThreshold )
+                #if USE_MEANVAR_NORMALIZATION
+                    const std::vector<IntegralImagePixelType> &mean = imgData.ROIs[roiNo]->meanVarSubtract[mChannel];
+                    const std::vector<IntegralImagePixelType> &invStd = imgData.ROIs[roiNo]->meanVarMult[mChannel];
+                #endif
+
+            #if USE_MEANVAR_NORMALIZATION
+                if ( ii.centeredSumNormalized( box, mean[bid.sampOffset[i]], invStd[bid.sampOffset[i]] ) < mThreshold )
+            #else
+                if ( ii.centeredSumNormalized( box ) < mThreshold )
+            #endif
                     prediction[i] = 1;
                 else
                     prediction[i] = negativeValue;
@@ -276,7 +309,14 @@ struct FeatureRawOperator
 
         const ROIData &roi = *mBI.imgData->ROIs[ mBI.sampROI[idx] ];
 
+    #if USE_MEANVAR_NORMALIZATION
+        const std::vector<IntegralImagePixelType> &mean = roi.meanVarSubtract[mChannel];
+        const std::vector<IntegralImagePixelType> &invStd = roi.meanVarMult[mChannel];
+
+        return roi.integralImages[mChannel].centeredSumNormalized( box, mean[mBI.sampOffset[idx]], invStd[mBI.sampOffset[idx]] );
+    #else
         return roi.integralImages[mChannel].centeredSumNormalized( box );
+    #endif
     }
 
     inline IntegralImagePixelType value( unsigned int idx ) const

@@ -30,7 +30,15 @@ static const GTPixelType GTNegLabel = 1;
 static const GTPixelType GTPosLabel = 2;
 
 // supervoxel or voxel-based?
-#define USE_SUPERVOXELS	1
+// So far, no supervoxel support available
+#define USE_SUPERVOXELS	0
 
+// mean-variance normalization per-'patch'
+#define USE_MEANVAR_NORMALIZATION 0
+#define MEANVAR_NORMALIZATION_CUBE_RADIUS 50  // cube placed at voxel of interest
+
+#if USE_MEANVAR_NORMALIZATION
+	#pragma message "USING MEAN-VARIANCE NORMALIZATION"
+#endif
 
 #endif

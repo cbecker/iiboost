@@ -1,5 +1,10 @@
 - speed-up: sort samples by ROI idx
 
+- fix ROIData::init() with pointers and mean-var normalization
+
+- less memory-intensive mean-variance normalization:
+		we should at least use float instead of double in statistics
+
 - python: multiple ROIs for prediction
 - python: check that C order is passed in train() and predict()
 - python: add more options (num weak learners search per iter, etc)

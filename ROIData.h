@@ -80,8 +80,9 @@ public:
     Matrix3D<GTPixelType>     gtImage;
 
 
-    // ITK stores matrices in row major
-    typedef Eigen::Matrix<float,3,3,Eigen::RowMajor>     RotationMatrixType;
+    // ITK stores matrices in row major, but the eigenvectors are in the rows
+    // of the vnl matrix
+    typedef Eigen::Matrix<float,3,3,Eigen::ColMajor>     RotationMatrixType;
 
     // this will point to rotMatricesImg's data
     const RotationMatrixType *rotMatrices;

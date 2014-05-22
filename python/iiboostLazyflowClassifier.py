@@ -1,6 +1,7 @@
 import os
 import tempfile
 import cPickle as pickle
+import threading
 
 import numpy
 import h5py
@@ -25,13 +26,18 @@ class IIBoostLazyflowClassifierFactory(object):
         for image in images:
             assert len(image.shape) == 4, "IIBoost expects 3D data."
             assert image.shape[-1] == 1, "IIBoost expects exactly one channel"
-            converted_images.append( numpy.asarray(image[...,0], dtype=numpy.uint8) )
+            converted = numpy.array( numpy.asarray(image[...,0], dtype=numpy.uint8) )
+            converted_images.append( converted )
 
         converted_labels = []
         for label_image in label_images:
             assert len(label_image.shape) == 4, "IIBoost expects 3D data."
             assert label_image.shape[-1] == 1, "IIBoost expects exactly one channel"
-            converted_labels.append( numpy.asarray(label_image[...,0], dtype=numpy.uint8) )
+            converted = numpy.array( numpy.asarray(label_image[...,0], dtype=numpy.uint8) )
+            converted_labels.append( converted )
+
+        #numpy.save( '/tmp/training_img.npy', converted_images[0] )
+        #numpy.save( '/tmp/training_labels.npy', converted_labels[0] )
 
         model = IIBoost.Booster()
         model.train( converted_images, converted_labels, *self._args, **self._kwargs )
@@ -45,7 +51,9 @@ class IIBoostLazyflowClassifierFactory(object):
 
     def get_halo_shape(self, data_axes):
         # FIXME: What halo does IIBoost require?
-        return (0,) * len(data_axes)
+        halo_shape = (100,) * (len(data_axes)-1)
+        halo_shape += (0,) # no halo for channel
+        return halo_shape
 
     @property
     def description(self):
@@ -58,6 +66,7 @@ class IIBoostLazyflowClassifier(object):
     def __init__(self, model, known_labels):
         self._known_labels = known_labels
         self._model = model
+        self._lock = threading.Lock()
     
     def predict_probabilities_pixelwise(self, image):
         logger.debug( 'predicting with IIBoost' )
@@ -66,7 +75,14 @@ class IIBoostLazyflowClassifier(object):
 
         # IIBoost requires both images and labels to be uint8
         image = numpy.asarray(image, dtype=numpy.uint8)[...,0]
-        return self._model.predict( image )
+        image = numpy.array( image )
+        with self._lock:
+            #numpy.save( '/tmp/predict_img.npy', image )
+            prediction_img = self._model.predict( image )
+            assert prediction_img.shape == image.shape + len(self._known_labels), \
+                "Output image had wrong shape. Expected: {}, Got {}"\
+                "".format( image.shape + len(self._known_labels), prediction_img.shape )
+            return prediction_img
     
     @property
     def known_classes(self):
@@ -74,7 +90,9 @@ class IIBoostLazyflowClassifier(object):
 
     def get_halo_shape(self, data_axes):
         # FIXME: What halo does IIBoost require?
-        return (0,) * len(data_axes)
+        halo_shape = (100,) * (len(data_axes)-1)
+        halo_shape += (0,) # no halo for channel
+        return halo_shape
 
     def serialize_hdf5(self, h5py_group):
         # FIXME: save the classifier

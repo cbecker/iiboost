@@ -46,6 +46,8 @@ class IIBoostLazyflowClassifierFactory(object):
         flattened_labels = map( numpy.ndarray.flatten, converted_labels )
         all_labels = numpy.concatenate(flattened_labels)
         known_labels = numpy.unique(all_labels)
+        if known_labels[0] == 0:
+            known_labels = known_labels[1:]
 
         return IIBoostLazyflowClassifier( model, known_labels )
 
@@ -79,10 +81,14 @@ class IIBoostLazyflowClassifier(object):
         with self._lock:
             #numpy.save( '/tmp/predict_img.npy', image )
             prediction_img = self._model.predict( image )
-            assert prediction_img.shape == image.shape + len(self._known_labels), \
+            # Image from model prediction has no channels.
+            prediction_img_reshaped = numpy.zeros( prediction_img.shape + (len(self._known_labels),), dtype=numpy.float32 )
+            prediction_img_reshaped[...,-1] = prediction_img
+            
+            assert prediction_img_reshaped.shape == image.shape + (len(self._known_labels),), \
                 "Output image had wrong shape. Expected: {}, Got {}"\
-                "".format( image.shape + len(self._known_labels), prediction_img.shape )
-            return prediction_img
+                "".format( image.shape + len(self._known_labels), prediction_img_reshaped.shape )
+            return prediction_img_reshaped
     
     @property
     def known_classes(self):

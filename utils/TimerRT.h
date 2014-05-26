@@ -21,6 +21,29 @@
 
 #include <time.h>
 
+#include <time.h>
+#include <sys/time.h>
+
+#ifdef __MACH__
+    #include <mach/clock.h>
+    #include <mach/mach.h>
+#endif
+
+// http://stackoverflow.com/a/6725161/162094
+void gettime(timespec & ts) {
+    #ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+        clock_serv_t cclock;
+        mach_timespec_t mts;
+        host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+        clock_get_time(cclock, &mts);
+        mach_port_deallocate(mach_task_self(), cclock);
+        ts.tv_sec = mts.tv_sec;
+        ts.tv_nsec = mts.tv_nsec;
+    #else
+        clock_gettime(CLOCK_REALTIME, &ts);
+    #endif
+}
+
 // a simple timer
 class TimerRT
 {
@@ -28,7 +51,7 @@ private:
     struct timespec ts1;
 public:
     void reset() {
-        clock_gettime( CLOCK_REALTIME, &ts1 );
+        gettime(ts1);
     }
 
     TimerRT() { reset(); }
@@ -36,7 +59,7 @@ public:
     double  elapsed() const
     {
         struct timespec ts2;
-        clock_gettime( CLOCK_REALTIME, &ts2 );
+        gettime(ts2);
 
         return (double) ( 1.0*(1.0*ts2.tv_nsec - ts1.tv_nsec*1.0)*1e-9
                          + 1.0*ts2.tv_sec - 1.0*ts1.tv_sec );

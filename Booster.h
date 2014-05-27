@@ -23,7 +23,7 @@
 #include "ContextFeatures/WeakLearner.h"
 #include "ContextFeatures/ContextRelativePoses.h"
 #include "utils/DiscreteRandomSampler.h"
-#include <omp.h>
+//#include <omp.h>
 
 // we need the boosting model
 #include "BoosterModel.h"
@@ -236,7 +236,7 @@ public:
 		subsampledWeights->setConstant(1.0 / totSampled);
 	}
 
-	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = omp_get_max_threads() )
+	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = 4 )
 	{
 		// num samples
 		const unsigned N = bid.sampLabels.size();
@@ -334,7 +334,7 @@ public:
 	void predict( const MultipleROIData *rois, 
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
-				  unsigned numThreads = omp_get_max_threads() ) const
+				  unsigned numThreads = 4 ) const
 	{
 		MultipleROIData singleRoiData;
 		singleRoiData.init( rois->zAnisotropyFactor );
@@ -352,7 +352,7 @@ public:
 		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
 		MapType predMap( pred->data(), pred->numElem() );
 
-		#pragma omp parallel for
+		//#pragma omp parallel for
 		for (unsigned i=0; i < N; i++)
 		{
 			BoosterPredictOperator<MapType> op(predMap, mModel[i].alpha);

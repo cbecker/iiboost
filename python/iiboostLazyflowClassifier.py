@@ -13,6 +13,11 @@ import IIBoost
 
 class IIBoostLazyflowClassifierFactory(object):
     """
+    This class adheres to the LazyflowPixelwiseClassifierFactoryABC interface, 
+    which means it can be used by the standard classifier operators defined in lazyflow.
+    
+    Instances of this class can create trained instances of IIBoostLazyflowClassifier,
+    which adheres to the LazyflowPixelwiseClassifierABC interface.
     """
     def __init__(self, *args, **kwargs):
         self._args = args
@@ -36,9 +41,6 @@ class IIBoostLazyflowClassifierFactory(object):
             converted = numpy.array( numpy.asarray(label_image[...,0], dtype=numpy.uint8) )
             converted_labels.append( converted )
 
-        #numpy.save( '/tmp/training_img.npy', converted_images[0] )
-        #numpy.save( '/tmp/training_labels.npy', converted_labels[0] )
-
         model = IIBoost.Booster()
         model.train( converted_images, converted_labels, *self._args, **self._kwargs )
 
@@ -61,6 +63,10 @@ class IIBoostLazyflowClassifierFactory(object):
     def description(self):
         return "IIBoost Classifier"
 
+# This assertion should pass if lazyflow is available.
+#from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
+#assert issubclass( IIBoostLazyflowClassifierFactory, LazyflowPixelwiseClassifierFactoryABC )
+
 class IIBoostLazyflowClassifier(object):
     """
     Adapt the IIBoost classifier to the interface lazyflow expects.
@@ -79,9 +85,10 @@ class IIBoostLazyflowClassifier(object):
         image = numpy.asarray(image, dtype=numpy.uint8)[...,0]
         image = numpy.array( image )
         with self._lock:
-            #numpy.save( '/tmp/predict_img.npy', image )
             prediction_img = self._model.predict( image )
-            # Image from model prediction has no channels.
+            # Image from model prediction has no channels,
+            #  but lazyflow expects classifiers to produce one channel for each 
+            #  label class.  Here, we simply insert zero-channels for all but the last channel.
             prediction_img_reshaped = numpy.zeros( prediction_img.shape + (len(self._known_labels),), dtype=numpy.float32 )
             prediction_img_reshaped[...,-1] = prediction_img
             
@@ -115,3 +122,7 @@ class IIBoostLazyflowClassifier(object):
         # FIXME: Implement deserialization
         raise NotImplementedError
         #return IIBoostClassifier()
+
+# This assertion should pass if lazyflow is available.
+#from lazyflow.classifiers import LazyflowPixelwiseClassifierABC
+#assert issubclass( IIBoostLazyflowClassifier, LazyflowPixelwiseClassifierABC )

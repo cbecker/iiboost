@@ -90,6 +90,25 @@ else()
     target_link_libraries( test ${COMMON_LIBS} rt)
 endif()
 
+#
+# Set a variable with CMake code which:
+# Creates a symlink from src to dest (if possible) or alternatively
+# copies if different.
+macro(_create_symlink TARGET SRC DEST)
+  if(WIN32 AND NOT CYGWIN)
+    message(STATUS "Will copy ${SRC} to ${DEST} if needed")
+    add_custom_command( TARGET ${TARGET} POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E copy_if_different \"${SRC}\" \"${DEST}\")
+  else()
+    message(STATUS "Will symlink ${SRC} to ${DEST}")
+    #if you don't want silent replacement, comment out the remove line
+    add_custom_command( TARGET ${TARGET} POST_BUILD
+                        COMMAND ${CMAKE_COMMAND} -E remove \"${DEST}\"
+                        COMMAND ${CMAKE_COMMAND} -E create_symlink \"${SRC}\" \"${DEST}\")
+  endif()
+
+endmacro()
+
 ## PYTHON wrapper
 if (BUILD_PYTHON_WRAPPER)
     add_library( iiboost_python SHARED python/iiboost_python.cpp slic/LKM.cpp slic/utils.cpp )
@@ -100,13 +119,12 @@ if (BUILD_PYTHON_WRAPPER)
         target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 rt)
     endif()
 
-    # copy python test files
-    configure_file("testData/img.jlb" "img.jlb" COPYONLY)
-    configure_file("testData/gt.jlb"  "gt.jlb" COPYONLY)
+    _create_symlink(iiboost_python "testData/img.jlb" "img.jlb")
+    _create_symlink(iiboost_python "testData/gt.jlb" "gt.jlb")
+    _create_symlink(iiboost_python "python/python_test_raw.py"   "python_test_raw.py")
+    _create_symlink(iiboost_python "python/python_test_class.py" "python_test_class.py")
+    _create_symlink(iiboost_python "python/IIBoost.py" "IIBoost.py")
 
-    configure_file("python/python_test_raw.py"   "python_test_raw.py"   COPYONLY)
-    configure_file("python/python_test_class.py" "python_test_class.py" COPYONLY)
-    configure_file("python/IIBoost.py" "IIBoost.py" COPYONLY)
 endif()
 
 

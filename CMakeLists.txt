@@ -100,13 +100,15 @@ if (BUILD_PYTHON_WRAPPER)
         target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 rt)
     endif()
 
-    # copy python test files
-    configure_file("testData/img.jlb" "img.jlb" COPYONLY)
-    configure_file("testData/gt.jlb"  "gt.jlb" COPYONLY)
-
-    configure_file("python/python_test_raw.py"   "python_test_raw.py"   COPYONLY)
-    configure_file("python/python_test_class.py" "python_test_class.py" COPYONLY)
-    configure_file("python/IIBoost.py" "IIBoost.py" COPYONLY)
+    # create symlinks (does not work on windows)
+    add_custom_command(
+        TARGET iiboost_python POST_BUILD
+        COMMAND ln -sf "testData/img.jlb" "img.jlb"
+        COMMAND ln -sf "testData/gt.jlb" "gt.jlb"
+	COMMAND ln -sf "python/python_test_raw.py"   "python_test_raw.py"
+    	COMMAND ln -sf "python/python_test_class.py" "python_test_class.py"
+    	COMMAND ln -sf "python/IIBoost.py" "IIBoost.py"
+    )
 endif()
 
 

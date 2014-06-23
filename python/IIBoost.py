@@ -43,7 +43,6 @@ class Booster:
 	# holds ptr to library (ctypes)
 	libPtr = None
 
-
 	def __init__(self):
 		self.libPtr = ctypes.CDLL( self.libName )
 		self.modelPtr = None
@@ -145,6 +144,27 @@ class Booster:
 				  ctypes.c_void_p(pred.ctypes.data) )
 
 		return pred
+
+	def computeIntegralImage( self, imgStack ):
+		
+		""" returns confidence stack of pixel type float """
+		if imgStack.dtype != np.dtype("float32"):
+			raise RuntimeError("image must be of float32 type")
+
+		# 'mangle' dimensions to deal with storage order (assuming C-style)
+		width = imgStack.shape[2]
+		height = imgStack.shape[1]
+		depth = imgStack.shape[0]
+
+		# pre-alloc integral image
+		integralImage = np.empty_like( imgStack, dtype=np.dtype("float32") )
+
+
+		self.libPtr.computeIntegralImage( ctypes.c_void_p(imgStack.ctypes.data),
+															ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+															ctypes.c_void_p(integralImage.ctypes.data) )
+
+		return integralImage
 
 	# if model is not null, free it
 	def freeModel(self):

@@ -128,4 +128,20 @@ extern "C"
 
 		return modelPtr;
 	}
+
+    // input: one imgPtr (float32)
+    // returns an IntegralImage< IntegralImagePixelType = float > image
+    void computeIntegralImage( FloatIntegralImagePixelType *rawImgPtr,
+                               int width, int height, int depth,
+                               FloatIntegralImagePixelType *integralImagePtr){
+
+        Matrix3D<FloatIntegralImagePixelType> integralMatrix;
+        integralMatrix.fromSharedData( integralImagePtr, width, height, depth );
+
+        Matrix3D<FloatIntegralImagePixelType> rawImageMatrix;
+        rawImageMatrix.fromSharedData( rawImgPtr, width, height, depth );
+
+        IntegralImage<FloatIntegralImagePixelType>::staticCompute( integralMatrix, rawImageMatrix );
+
+    }
 }

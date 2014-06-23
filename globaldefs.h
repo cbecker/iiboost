@@ -20,6 +20,7 @@
 #define _GLOBAL_DEFS_H_
 
 /** Important Types **/
+typedef float           FloatIntegralImagePixelType;
 typedef double 			IntegralImagePixelType;  // this can make a huge difference in mem usage
 typedef unsigned char	ImagePixelType;
 typedef double AdaBoostErrorType;

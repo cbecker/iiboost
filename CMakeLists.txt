@@ -106,8 +106,8 @@ if (BUILD_PYTHON_WRAPPER)
         COMMAND ln -sf "testData/img.jlb" "img.jlb"
         COMMAND ln -sf "testData/gt.jlb" "gt.jlb"
 	COMMAND ln -sf "python/python_test_raw.py"   "python_test_raw.py"
-    	COMMAND ln -sf "python/python_test_class.py" "python_test_class.py"
-    	COMMAND ln -sf "python/IIBoost.py" "IIBoost.py"
+        COMMAND ln -sf "python/python_test_class.py" "python_test_class.py"
+        COMMAND ln -sf "python/IIBoost.py" "IIBoost.py"
     )
 endif()
 

@@ -21,7 +21,7 @@ imgFloat = np.float32(img)
 iiImage = model.computeIntegralImage( imgFloat )
 
 # Train: note that we pass a list of stacks
-model.trainWithChannels( [img], [gt], [iiImage], numStumps=5, debugOutput=True)
+model.trainWithChannels( [img], [gt], [iiImage], numStumps=100, debugOutput=True)
 
 # again, that doesn't make sense either, just to test
 imgFloat = np.float32(img)

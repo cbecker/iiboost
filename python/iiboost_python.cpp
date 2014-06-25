@@ -262,8 +262,8 @@ extern "C"
 
             ROIData rois[numStacks];					// TODO: not C++99 compatible?
             MultipleROIData allROIs;
-            ROIData::IntegralImageType ii[numChannels][numStacks];	// TODO: remove
-            ROIData::IntegralImageType testii[numChannels][numStacks];	// TODO: remove
+            ROIData::IntegralImageType ii[numStacks][numChannels];	// TODO: remove
+//            ROIData::IntegralImageType testii[numStacks][numChannels];	// TODO: remove
 
             fprintf(stderr,"numchannels: %d numstacks: %d\n",numChannels,numStacks);
 
@@ -272,34 +272,26 @@ extern "C"
                 for (int ch=0; ch < numChannels; ch++)
                 {
 
-                   fprintf(stderr, "imgPtr[i][0]\n %d\n",imgPtr[i][2]);
-                   IntegralImagePixelType a = chImgPtr[ch+i][2];
-                   fprintf(stderr, "4: chImgPtr[%d][%d][0]\n %g\n",ch,i,chImgPtr[ch+i*numChannels][2]);
-
                    rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
 
-                   //testii[ch][i].compute( rois[i].rawImage );
-                   ii[ch][i].fromSharedData(chImgPtr[ch+i*numChannels], width[i], height[i], depth[i]);
+//                   testii[i][ch].compute( rois[i].rawImage );
+                   ii[i][ch].fromSharedData(chImgPtr[i*numChannels+ch], width[i], height[i], depth[i]);
 
-                   rois[i].addII( ii[ch][i].internalImage().data() );
+                   rois[i].addII( ii[i][ch].internalImage().data() );
 
                    allROIs.add( &rois[i] );
                 }
             }
 
             // test that both matrices are the same
-//            for(int w=0; w<5; w++){
-//                for(int h=0; h<5; h++){
-//                    for(int d=0; d<5; d++){
 
-//                        std::cerr <<     ii[0][0].internalImage().data()[w*width[0]*height[0] +h*height[0] + d] << std::endl;
-//                        std::cerr << testii[0][0].internalImage().data()[w*width[0]*height[0] +h*height[0] + d] << std::endl;
-
-//                    }
-//                }
-//            }
-
-            fprintf(stderr, "prepare adaboost %s:%d\n",__FILE__,__LINE__);
+//            for (int i=0; i < numStacks; i++)
+//              for (int ch=0; ch < numChannels; ch++)
+//                for(int w=0; w<width[i]; w++)
+//                  for(int h=0; h<height[i]; h++)
+//                    for(int d=0; d<depth[i]; d++)
+//                      assert(     ii[i][ch].internalImage().data()[w*width[i]*height[i] +h*height[i] + d]
+//                           == testii[i][ch].internalImage().data()[w*width[i]*height[i] +h*height[i] + d]);
 
             BoosterInputData bdata;
             bdata.init( &allROIs );
@@ -307,8 +299,6 @@ extern "C"
 
             Booster adaboost;
             adaboost.setShowDebugInfo( debugOutput != 0 );
-
-            fprintf(stderr, "Compute adaboost %s:%d\n",__FILE__,__LINE__);
 
             adaboost.train( bdata, numStumps );
 

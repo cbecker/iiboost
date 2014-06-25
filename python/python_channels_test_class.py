@@ -14,19 +14,28 @@ import matplotlib.pyplot as plt
 gt = joblib.load("gt.jlb")
 img = joblib.load("img.jlb")
 
+# let's pretend we have 3 image stacks with different number of ROIs
+# with its corresponding gt and 2 feature channels
+
+img3 = img2 = img1 = img
+gt3  =  gt2 =  gt1 = gt
+
 model = Booster()
 
 imgFloat = np.float32(img)
 iiImage = model.computeIntegralImage( imgFloat )
-#this is stupid, just presume the second iiImage is a different feature
-channel1 = [iiImage, iiImage, iiImage]
-channel2 = [iiImage, iiImage, iiImage]
+
+# again, this is stupid, just presume the second channel is a different feature
+channel1 = iiImage
+channel2 = iiImage
+channels3 = channels2 = channels1 = [channel1,channel2]
+
+#And now, for the boosting
+
 
 # Train: note that we pass a list of stacks
-model.trainWithChannels( [img,img,img], [gt,gt,gt], [[iiImage, iiImage, iiImage],[iiImage, iiImage, iiImage]], numStumps=5, debugOutput=True)
+model.trainWithChannels( [img1,img2,img3], [gt1,gt2,gt3], [channels1,channels2,channels3], numStumps=5, debugOutput=True)
 #model.trainWithChannels( [img], [gt], [[iiImage]], numStumps=5, debugOutput=True)
-#model.trainWithChannel( [img], [gt], [iiImage], numStumps=5, debugOutput=True)
-#model.train( [img], [gt], numStumps=5, debugOutput=True)
 
 imgFloat = np.float32(img)
 iiImage = model.computeIntegralImage( imgFloat )

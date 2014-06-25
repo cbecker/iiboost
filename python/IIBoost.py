@@ -35,7 +35,8 @@ def propToCArray( L, prop, cArrayElType ):
 def propListToCArray( L, prop, cArrayElType ):
 	M = len(L)
 	N = len(L[0])
-	arr = (cArrayElType * N * M)()
+	T = M * N
+	arr = (cArrayElType * T)()
 
 	for idm, m in enumerate(L):
 		for idx,e in enumerate(m):
@@ -189,14 +190,17 @@ class Booster:
 			"""   numStumps:    integer """
 			""" WARNING: it assumes stacks are in C ordering """
 
-			for chStackList in chStackListList :
-				if (type(imgStackList) != list) or (type(gtStackList) != list) or (type(chStackList) != list):
-					raise RuntimeError("image, gt and channels stack list must of be of type LIST")
+			if (type(imgStackList) != list) or (type(gtStackList) != list) or (type(chStackListList) != list):
+				raise RuntimeError("image, gt and channels stack list must of be of type LIST")
 
-				# check shape/type of img and gt
-				if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackList):
-					raise RuntimeError("image, gt stack and channels list must of be of same size,",
-															len(imgStackList)," ",len(gtStackList)," ",len(chStackList))
+			# check shape/type of img and gt
+			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList):
+				raise RuntimeError("image, gt stack and channels list must of be of same size,",
+														len(imgStackList)," ",len(gtStackList)," ",len(chStackList))
+
+			for chStackList in chStackListList :
+				if (type(chStackList) != list):
+					raise RuntimeError("Every channel stack list must of be of type LIST")
 
 				for img,gt,ch in zip(imgStackList, gtStackList, chStackList):
 					if img.shape != gt.shape or gt.shape != ch.shape:
@@ -214,25 +218,11 @@ class Booster:
 			imgs  = propToCArray( imgStackList, "ctypes.data", ctypes.c_void_p )
 			gts   = propToCArray(  gtStackList, "ctypes.data", ctypes.c_void_p )
 
-#			chansCArrayList = []
-#			for chStackList in chStackListList :
-#				# probably something different has to be done here to store the information
-#				chansCArrayList.append(propToCArray(  chStackList, "ctypes.data", ctypes.c_void_p ))
+			chans = propListToCArray( chStackListList, "ctypes.data", ctypes.c_void_p )
 
-#			chans = propListToCArray( chStackListList, "ctypes.data", ctypes.c_void_p )
-
-			stacklength = len(chStackListList[0])
-			print "stack length: ",stacklength
-			N = len(chStackListList)*stacklength
-			chans = (ctypes.c_void_p * N )()
-			idx = 0
-			for idch,chStackList in enumerate(chStackListList):
-				for idx,e in enumerate(chStackList):
-					print idch," ",idx
-					chans[idch*stacklength+idx] = ctypes.c_void_p( eval("e.ctypes.data") )
-#					idx = idx+1
-
-			print chans
+			numStacks = len(chStackListList)
+			numChannels = len(chStackListList[0])
+			print "Number of stacks: ",numStacks,". Each with ",numChannels," channels."
 
 			if debugOutput:
 				dbgOut = ctypes.c_int(1)
@@ -245,7 +235,7 @@ class Booster:
 											width, height, depth,
 											ctypes.c_int( len(imgs) ),
 											chans,
-											ctypes.c_int( len(chStackListList) ),
+											ctypes.c_int( numChannels ),
 											ctypes.c_int(numStumps), dbgOut ) )
 
 			if newModelPtr.value == None:

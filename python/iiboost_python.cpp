@@ -105,6 +105,42 @@ extern "C"
         adaboost.predict( &allROIs, &predMatrix );
     }
 
+    // assumes that predPtr is already allocated, of same size as imgPtr
+    void predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
+                              int width, int height, int depth,
+                              IntegralImagePixelType **chImgPtr,
+                              int numChannels,
+                              PredictionPixelType *predPtr )
+    {
+        Matrix3D<PredictionPixelType> predMatrix;
+        predMatrix.fromSharedData( predPtr, width, height, depth );
+
+        // create roi for image, no GT available
+        ROIData roi;
+        roi.init( imgPtr, 0, 0, 0, width, height, depth );
+
+        // get the precomputed integral images
+//        ROIData::IntegralImageType ii[numChannels];	// TODO: remove
+//        for(int i = 0; i < numChannels; i++){
+//            ii[i].fromSharedData(chImgPtr[i], width, height, depth);
+//            //TODO what to do with it?
+//            roi.addII( ii[i].internalImage().data() );
+//        }
+        //test with just one image //TODO remove this
+        ROIData::IntegralImageType ii;
+        ii.fromSharedData(chImgPtr[0], width, height, depth);
+        roi.addII( ii.internalImage().data() );
+        //
+
+        MultipleROIData allROIs;
+        allROIs.add( &roi );
+
+        Booster adaboost;
+        adaboost.setModel( *((BoosterModel *) modelPtr) );
+
+        adaboost.predict( &allROIs, &predMatrix );
+    }
+
 	// input: multiple imgPtr, gtPtr (arrays of pointers)
 	//		  multiple img sizes
 	// returns a BoosterModel *
@@ -161,7 +197,7 @@ extern "C"
     //		  multiple img sizes
     // returns a BoosterModel *
     // -- BEWARE: this function is a mix of dirty tricks right now
-    void * trainWithChannels( ImagePixelType **imgPtr, GTPixelType **gtPtr,
+    void * trainWithChannel( ImagePixelType **imgPtr, GTPixelType **gtPtr,
                              IntegralImagePixelType **chImgPtr,
                               int *width, int *height, int *depth,
                               int numStacks,
@@ -198,6 +234,91 @@ extern "C"
         }
         catch( std::exception &e )
         {
+            printf("Error training: %s\n", e.what());
+            delete modelPtr;
+
+            return 0;
+        }
+
+        return modelPtr;
+    }
+
+    // input: multiple imgPtr, gtPtr (arrays of pointers)
+    //		  multiple img sizes
+    // returns a BoosterModel *
+    // -- BEWARE: this function is a mix of dirty tricks right now
+    void * trainWithChannels( ImagePixelType **imgPtr, GTPixelType **gtPtr,
+                             int *width, int *height, int *depth,
+                             int numStacks,
+                             IntegralImagePixelType **chImgPtr,
+                             int numChannels,
+                             int numStumps, int debugOutput )
+    {
+
+        BoosterModel *modelPtr = 0;
+
+        try
+        {
+
+            ROIData rois[numStacks];					// TODO: not C++99 compatible?
+            MultipleROIData allROIs;
+            ROIData::IntegralImageType ii[numChannels][numStacks];	// TODO: remove
+            ROIData::IntegralImageType testii[numChannels][numStacks];	// TODO: remove
+
+            fprintf(stderr,"numchannels: %d numstacks: %d\n",numChannels,numStacks);
+
+            for (int i=0; i < numStacks; i++)
+            {
+                for (int ch=0; ch < numChannels; ch++)
+                {
+
+                   fprintf(stderr, "imgPtr[i][0]\n %d\n",imgPtr[i][2]);
+                   IntegralImagePixelType a = chImgPtr[ch+i][2];
+                   fprintf(stderr, "4: chImgPtr[%d][%d][0]\n %g\n",ch,i,chImgPtr[ch+i*numChannels][2]);
+
+                   rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+
+                   //testii[ch][i].compute( rois[i].rawImage );
+                   ii[ch][i].fromSharedData(chImgPtr[ch+i*numChannels], width[i], height[i], depth[i]);
+
+                   rois[i].addII( ii[ch][i].internalImage().data() );
+
+                   allROIs.add( &rois[i] );
+                }
+            }
+
+            // test that both matrices are the same
+//            for(int w=0; w<5; w++){
+//                for(int h=0; h<5; h++){
+//                    for(int d=0; d<5; d++){
+
+//                        std::cerr <<     ii[0][0].internalImage().data()[w*width[0]*height[0] +h*height[0] + d] << std::endl;
+//                        std::cerr << testii[0][0].internalImage().data()[w*width[0]*height[0] +h*height[0] + d] << std::endl;
+
+//                    }
+//                }
+//            }
+
+            fprintf(stderr, "prepare adaboost %s:%d\n",__FILE__,__LINE__);
+
+            BoosterInputData bdata;
+            bdata.init( &allROIs );
+            bdata.showInfo();
+
+            Booster adaboost;
+            adaboost.setShowDebugInfo( debugOutput != 0 );
+
+            fprintf(stderr, "Compute adaboost %s:%d\n",__FILE__,__LINE__);
+
+            adaboost.train( bdata, numStumps );
+
+            // create by copying
+            modelPtr = new BoosterModel( adaboost.model() );
+        }
+        catch( std::exception &e )
+        {
+            fprintf(stderr, "hey");
+
             printf("Error training: %s\n", e.what());
             delete modelPtr;
 

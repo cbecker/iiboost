@@ -125,6 +125,7 @@ if (BUILD_PYTHON_WRAPPER)
     _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_computeII_example.py" "python_computeII_example.py")
     _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_test_class.py" "python_test_class.py")
     _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_light_test_class.py" "python_light_test_class.py")
+    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_channels_test_class.py" "python_channels_test_class.py")
     _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/IIBoost.py" "IIBoost.py")
 
 endif()

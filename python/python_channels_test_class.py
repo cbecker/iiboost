@@ -34,7 +34,7 @@ channels3 = channels2 = channels1 = [channel1,channel2]
 
 
 # Train: note that we pass a list of stacks
-model.trainWithChannels( [img1,img2,img3], [gt1,gt2,gt3], [channels1,channels2,channels3], numStumps=5, debugOutput=True)
+model.trainWithChannels( [img1,img2,img3], [gt1,gt2,gt3], [channels1,channels2,channels3], numStumps=100, debugOutput=True)
 #model.trainWithChannels( [img], [gt], [[iiImage]], numStumps=5, debugOutput=True)
 
 imgFloat = np.float32(img)

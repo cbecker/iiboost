@@ -74,11 +74,16 @@ struct BoosterModel
 {
 	std::vector<BoosterComponent> data;
 	std::string mIIBoostModelVersion;
+	unsigned	mNumChannels;	// number of channels per image
 
 	BoosterModel()
 	{
 		mIIBoostModelVersion = "IIBoost Model v1.0";
+		mNumChannels = 0;
 	}
+
+	void setNumChannels( unsigned n ) { mNumChannels = n; }
+	unsigned numChannels() const { return mNumChannels; }
 
 	void add( const WeakLearner &wl, const double alpha )
 	{
@@ -111,6 +116,7 @@ struct BoosterModel
 
 		rapidjson::PrettyWriter<StreamType>	writer(stream);
 		JSON_ADD( "type", mIIBoostModelVersion.c_str() );
+		JSON_ADD( "num_channels", mNumChannels );
 
 		rapidjson::Value  model;
 		model.SetArray();
@@ -163,6 +169,8 @@ struct BoosterModel
 		if (!doc.IsObject())	return false;
 		if ( mIIBoostModelVersion.compare(doc["type"].GetString()) != 0 )
 			return false;
+
+		mNumChannels = doc["num_channels"].GetInt();
 
 		const rapidjson::Value &modelArray = doc["model"];
 		if (!modelArray.IsArray())	return false;

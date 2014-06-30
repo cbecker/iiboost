@@ -30,18 +30,11 @@ channel1 = iiImage
 channel2 = iiImage
 channels3 = channels2 = channels1 = [channel1,channel2]
 
-#And now, for the boosting
-
 
 # Train: note that we pass a list of stacks
 model.trainWithChannels( [img1,img2,img3], [gt1,gt2,gt3], [channels1,channels2,channels3], numStumps=100, debugOutput=True)
-#model.trainWithChannels( [img], [gt], [[iiImage]], numStumps=5, debugOutput=True)
 
-imgFloat = np.float32(img)
-iiImage = model.computeIntegralImage( imgFloat )
-
-#this is stupid, just presume the second iiImage is a different feature
-pred = model.predictWithChannels( img, [iiImage] )
+pred = model.predictWithChannels( img, channels1 )
 
 # show image & prediction side by side
 plt.ion()

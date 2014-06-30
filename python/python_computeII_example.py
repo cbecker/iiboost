@@ -37,4 +37,3 @@ plt.title("Click on any image to exit")
 
 plt.ginput(1)
 
-#print "Serialization string: " + model.serialize()

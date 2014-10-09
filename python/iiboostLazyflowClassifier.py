@@ -63,6 +63,13 @@ class IIBoostLazyflowClassifierFactory(object):
     def description(self):
         return "IIBoost Classifier"
 
+    def __eq__(self, other):
+        return (    isinstance(other, type(self))
+                and self._args == other._args
+                and self._kwargs == other._kwargs )
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
 # This assertion should pass if lazyflow is available.
 #from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
 #assert issubclass( IIBoostLazyflowClassifierFactory, LazyflowPixelwiseClassifierFactoryABC )

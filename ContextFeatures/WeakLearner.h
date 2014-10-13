@@ -158,7 +158,7 @@ public:
 
         if (mInvert == false)
         {
-            #pragma omp parallel for num_threads(numThreads)
+            //#pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -174,7 +174,7 @@ public:
                     predOp(i, false);
             }
         } else {
-            #pragma omp parallel for num_threads(numThreads)
+            //#pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -215,7 +215,7 @@ public:
 
         if (mInvert == false)
         {
-            #pragma omp parallel for num_threads(numThreads)
+            //#pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -240,7 +240,7 @@ public:
                     prediction[i] = negativeValue;
             }
         } else {
-            #pragma omp parallel for num_threads(numThreads)
+            //#pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -596,7 +596,7 @@ public:
         }
 
         // for each possible pose
-        #pragma omp parallel for schedule(dynamic)
+        //#pragma omp parallel for schedule(dynamic)
         for (unsigned iPoseIdx = 0; iPoseIdx < numPosesToExplore; iPoseIdx++ )
         {
             // show some progress
@@ -639,7 +639,7 @@ public:
                                                                             mPoses, poseIdx, 
                                                                             mBID, mWeights,
                                                                             bin ), thr, inv );
-                    #pragma omp critical
+                    //#pragma omp critical
                     {
                         numExploredWeakLearners++;
                         if ( err < minErr )

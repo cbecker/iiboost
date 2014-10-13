@@ -23,26 +23,49 @@ class IIBoostLazyflowClassifierFactory(object):
         self._args = args
         self._kwargs = kwargs
     
-    def create_and_train_pixelwise(self, images, label_images):
+    def create_and_train_pixelwise(self, orig_filter_images, label_images):
         logger.debug( 'training with IIBoost' )
 
-        # IIBoost requires both images and labels to be uint8, 3D only
-        converted_images = []
-        for image in images:
-            assert len(image.shape) == 4, "IIBoost expects 3D data."
-            assert image.shape[-1] == 1, "IIBoost expects exactly one channel"
-            converted = numpy.array( numpy.asarray(image[...,0], dtype=numpy.uint8) )
-            converted_images.append( converted )
+        # Instantiate the classifier
+        model = IIBoost.Booster()
 
+        # IIBoost requires both labels to be uint8, 3D only
         converted_labels = []
         for label_image in label_images:
-            assert len(label_image.shape) == 4, "IIBoost expects 3D data."
-            assert label_image.shape[-1] == 1, "IIBoost expects exactly one channel"
+            assert len(label_image.shape) == 4, "IIBoost expects 4D data (including channel dimension)."
+            assert label_image.shape[-1] == 1, "Expected label image to have only one channel."
             converted = numpy.array( numpy.asarray(label_image[...,0], dtype=numpy.uint8) )
             converted_labels.append( converted )
 
-        model = IIBoost.Booster()
-        model.train( converted_images, converted_labels, *self._args, **self._kwargs )
+        # IIBoost requires raw images to be uint8, 3D only
+        # NOTE: we assume that the raw data can be found in channel 0.
+        raw_images = []
+        for image in orig_filter_images:
+            assert len(image.shape) == 4, "IIBoost expects 4D data (including channel)."
+            raw = numpy.asarray(image[...,0], dtype=numpy.uint8)
+            raw = numpy.array( raw )
+            raw_images.append( raw )
+
+        # IIBoost requires filter images to be float32, 3D+c only
+        filter_images = []
+        for image in orig_filter_images:
+            assert len(image.shape) == 4, "IIBoost expects 4D data (including channel dimension)."
+            filter_image = numpy.asarray(image, dtype=numpy.float32)
+            filter_image = numpy.array(image)
+            filter_images.append( filter_image )
+
+        # This is a debug class.  
+        # As such, we recalculate the integral images every time...                
+        integral_images = []
+        for image in filter_images:
+            integral_channels = []
+            for channel_image in numpy.rollaxis(image, -1, 0):
+                integral_channel = model.computeIntegralImage( channel_image )
+                integral_channels.append( integral_channel )
+            integral_images.append( integral_channels )
+
+        # Finally, train!
+        model.trainWithChannels( raw_images, converted_labels, integral_images, *self._args, **self._kwargs )
 
         # Save for future reference
         flattened_labels = map( numpy.ndarray.flatten, converted_labels )
@@ -88,11 +111,17 @@ class IIBoostLazyflowClassifier(object):
         assert len(image.shape) == 4, "IIBoost expects 3D data."
         assert image.shape[-1] == 1, "IIBoost expects exactly one channel"
 
-        # IIBoost requires both images and labels to be uint8
-        image = numpy.asarray(image, dtype=numpy.uint8)[...,0]
-        image = numpy.array( image )
+        # IIBoost requires both raw images and labels to be uint8
+        raw = numpy.asarray(image, dtype=numpy.uint8)[...,0]
+        raw = numpy.array( raw )
+
+        # This is a debug class.  
+        # As such, we recalculate the integral images every time...                
+        image_channels = list( numpy.rollaxis(image, -1, 0) )
+        integral_channels = map( self._model.computeIntegralImage, image_channels )
+        
         with self._lock:
-            prediction_img = self._model.predict( image )
+            prediction_img = self._model.predictWithChannels( raw, integral_channels )
             # Image from model prediction has no channels,
             #  but lazyflow expects classifiers to produce one channel for each 
             #  label class.  Here, we simply insert zero-channels for all but the last channel.

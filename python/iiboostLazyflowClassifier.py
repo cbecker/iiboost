@@ -11,7 +11,9 @@ logger = logging.getLogger(__name__)
 
 import IIBoost
 
-class IIBoostLazyflowClassifierFactory(object):
+from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
+
+class IIBoostLazyflowClassifierFactory(LazyflowPixelwiseClassifierFactoryABC):
     """
     This class adheres to the LazyflowPixelwiseClassifierFactoryABC interface, 
     which means it can be used by the standard classifier operators defined in lazyflow.
@@ -19,6 +21,8 @@ class IIBoostLazyflowClassifierFactory(object):
     Instances of this class can create trained instances of IIBoostLazyflowClassifier,
     which adheres to the LazyflowPixelwiseClassifierABC interface.
     """
+    VERSION = 1
+    
     def __init__(self, *args, **kwargs):
         self._args = args
         self._kwargs = kwargs
@@ -109,7 +113,6 @@ class IIBoostLazyflowClassifier(object):
     def predict_probabilities_pixelwise(self, image):
         logger.debug( 'predicting with IIBoost' )
         assert len(image.shape) == 4, "IIBoost expects 3D data."
-        assert image.shape[-1] == 1, "IIBoost expects exactly one channel"
 
         # IIBoost requires both raw images and labels to be uint8
         raw = numpy.asarray(image, dtype=numpy.uint8)[...,0]

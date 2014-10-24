@@ -60,7 +60,7 @@ extern "C"
 
 		// create roi for image, no GT available
 		ROIData roi;
-		roi.init( imgPtr, 0, 0, 0, width, height, depth );
+        roi.init( imgPtr, 0, 0, 0, width, height, depth, 1.0);
 
 		// raw image to integral image
 		ROIData::IntegralImageType ii;
@@ -96,7 +96,7 @@ extern "C"
 
 			for (int i=0; i < numStacks; i++)
 			{
-				rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i], 1.0 );
 
 				// raw image to integral image
 				// TODO: this should be removed and passed directly to train()

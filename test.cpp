@@ -39,7 +39,7 @@ int main()
 
 
 	ROIData roi;
-	roi.init( img.data(), gt.data(), 0, 0, img.width(), img.height(), img.depth() );
+    roi.init( img.data(), gt.data(), 0, 0, img.width(), img.height(), img.depth(), 1.0 );
 
 	// raw image integral image
 	ROIData::IntegralImageType ii;

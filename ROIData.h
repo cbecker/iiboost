@@ -264,8 +264,8 @@ public:
                IntegralImagePixelType **intImgPtr,
                unsigned numII,
                unsigned width, unsigned height, unsigned depth,
-               const float rotHessianSigma = 3.5,
-               const float zAnisotropyFactor = 1.0 )
+               const float zAnisotropyFactor,
+               const float rotHessianSigma = 3.5)
     {
 #if USE_MEANVAR_NORMALIZATION
         qFatal("init() with pointers not supported with mean variance normalization, needs fix!");

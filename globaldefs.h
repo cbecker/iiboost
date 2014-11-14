@@ -20,7 +20,8 @@
 #define _GLOBAL_DEFS_H_
 
 /** Important Types **/
-typedef double 			IntegralImagePixelType;  // this can make a huge difference in mem usage
+//@pol at Jun24. Changed from double to float (to process float32 integralImages), @Carlos, confirm.
+typedef float 			IntegralImagePixelType;  // this can make a huge difference in mem usage
 typedef unsigned char	ImagePixelType;
 typedef double AdaBoostErrorType;
 

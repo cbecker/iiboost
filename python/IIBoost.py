@@ -62,6 +62,8 @@ class Booster:
 		self.libPtr.serializeModel.restype = ctypes.py_object
 		self.libPtr.deserializeModel.restype = ctypes.c_void_p
 		self.libPtr.train.restype = ctypes.c_void_p
+		self.libPtr.trainWithChannel.restype = ctypes.c_void_p
+		self.libPtr.trainWithChannels.restype = ctypes.c_void_p
 
 	# returns a string representation of the model
 	def serialize( self ):

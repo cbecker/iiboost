@@ -31,50 +31,23 @@ int main()
 {
 	Matrix3D<ImagePixelType> img, gt;
 
-	if (!img.load("/data/phd/synapses/cropForView/layer2_smallcrop_crop.tif"))
+	if (!img.load("/cvlabdata1/cvlab/espina/sample_data/Madrid_Train.tif"))
 		qFatal("Error loading image");
 
-	if (!gt.load("/data/phd/synapses/cropForView/layer2_smallcrop_crop_gt.tif"))
+	if (!gt.load("/cvlabdata1/cvlab/espina/sample_data/Madrid_Train_espinagt.tif"))
 		qFatal("Error loading image");
 
-
-	// if (!img.load("/data/phd/synapses/single_synapse/single_synapse.tif"))
-	// 	qFatal("Error loading image");
-
-	// if (!gt.load("/data/phd/synapses/single_synapse/single_synapse_testgt.tif"))
-	// 	qFatal("Error loading image");
 
 	ROIData roi;
-	roi.init( img.data(), gt.data(), 0, 0, img.width(), img.height(), img.depth() );
+    roi.init( img.data(), gt.data(), 0, 0, img.width(), img.height(), img.depth(), 1.0 );
 
 	// raw image integral image
 	ROIData::IntegralImageType ii;
 	ii.compute( img );
 	roi.addII( ii.internalImage().data() );
 
-
-	Matrix3D<ImagePixelType> img2, gt2;
-
-
-	 if (!img2.load("/data/phd/synapses/single_synapse/single_synapse.tif"))
-	 	qFatal("Error loading image");
-
-	 if (!gt2.load("/data/phd/synapses/single_synapse/single_synapse_testgt.tif"))
-	 	qFatal("Error loading image");
-
-	ROIData roi2;
-	roi2.init( img2.data(), gt2.data(), 0, 0, img2.width(), img2.height(), img2.depth() );
-
-	// raw image integral image
-	ROIData::IntegralImageType ii2;
-	ii2.compute( img2 );
-	roi2.addII( ii2.internalImage().data() );
-
-
 	MultipleROIData allROIs;
 	allROIs.add( &roi );
-	allROIs.add( &roi2 );
-
 
 	BoosterInputData bdata;
 	bdata.init( &allROIs );

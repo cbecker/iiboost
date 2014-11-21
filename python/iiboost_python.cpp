@@ -52,80 +52,285 @@ extern "C"
 		return model;
 	}
 
-	// assumes that predPtr is already allocated, of same size as imgPtr
-	void predict( void *modelPtr, ImagePixelType *imgPtr, int width, int height, int depth, PredictionPixelType *predPtr )
-	{
-		Matrix3D<PredictionPixelType> predMatrix;
-		predMatrix.fromSharedData( predPtr, width, height, depth );
 
-		// create roi for image, no GT available
-		ROIData roi;
-		roi.init( imgPtr, 0, 0, 0, width, height, depth );
+    // Prediction for a single ROI
+    //  Accepts an arbitrary number of integral images/channels.
+    //  Assumes that predPtr is already allocated, of same size as imgPtr
+    //  Returns 0 if ok
+    int predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
+                              int width, int height, int depth,
+                              IntegralImagePixelType **chImgPtr,
+                              int numChannels,
+                              PredictionPixelType *predPtr )
+    {
+        Matrix3D<PredictionPixelType> predMatrix;
+        predMatrix.fromSharedData( predPtr, width, height, depth );
 
-		// raw image to integral image
-		ROIData::IntegralImageType ii;
-		ii.compute( roi.rawImage );
-		roi.addII( ii.internalImage().data() );
+        // create roi for image, no GT available
+        ROIData roi;
+        roi.init( imgPtr, 0, 0, 0, width, height, depth );
+
+        ROIData::IntegralImageType ii[numChannels];  // TODO: remove
+
+        for (int ch=0; ch < numChannels; ch++)
+        {
+           ii[ch].fromSharedData(chImgPtr[ch], width, height, depth);
+
+           roi.addII( ii[ch].internalImage().data() );
+        }
+
+        MultipleROIData allROIs;
+        allROIs.add( &roi );
+
+        try
+        {
+            Booster adaboost;
+            adaboost.setModel( *((BoosterModel *) modelPtr) );
+
+            adaboost.predict( &allROIs, &predMatrix );
+        }
+        catch( std::exception &e )
+        {
+            printf("Error in prediction: %s\n", e.what());
+            return -1;
+        }
+
+        return 0;
+    }
+
+    // input: multiple imgPtr, gtPtr (arrays of pointers)
+    //		  multiple img sizes
+    // returns a BoosterModel *
+    // -- BEWARE: this function is a mix of dirty tricks right now
+    void * trainWithChannels( ImagePixelType **imgPtr, GTPixelType **gtPtr,
+                             int *width, int *height, int *depth,
+                             int numStacks,
+                             IntegralImagePixelType **chImgPtr,
+                             int numChannels,
+                             int numStumps, int debugOutput )
+    {
+
+        BoosterModel *modelPtr = 0;
+
+        try
+        {
+            ROIData rois[numStacks];					// TODO: not C++99 compatible?
+            MultipleROIData allROIs;
+            ROIData::IntegralImageType ii[numStacks][numChannels];	// TODO: remove
+
+            for (int i=0; i < numStacks; i++)
+            {
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+
+                for (int ch=0; ch < numChannels; ch++)
+                {
+                   ii[i][ch].fromSharedData(chImgPtr[i*numChannels+ch], width[i], height[i], depth[i]);
+
+                   rois[i].addII( ii[i][ch].internalImage().data() );
+                }
+
+                allROIs.add( &rois[i] );
+            }
+
+            BoosterInputData bdata;
+            bdata.init( &allROIs );
+            bdata.showInfo();
+
+            Booster adaboost;
+            adaboost.setShowDebugInfo( debugOutput != 0 );
+
+            adaboost.train( bdata, numStumps );
+
+            // create by copying
+            modelPtr = new BoosterModel( adaboost.model() );
+        }
+        catch( std::exception &e )
+        {
+            printf("Error training: %s\n", e.what());
+            delete modelPtr;
+
+            return 0;
+        }
+
+        return modelPtr;
+    }
+
+    // input: one imgPtr (float32)
+    // returns an IntegralImage< IntegralImagePixelType = float > image
+    void computeIntegralImage( IntegralImagePixelType *rawImgPtr,
+                               int width, int height, int depth,
+                               IntegralImagePixelType *integralImagePtr)
+    {
+
+        Matrix3D<IntegralImagePixelType> integralMatrix;
+        integralMatrix.fromSharedData( integralImagePtr, width, height, depth );
+
+        Matrix3D<IntegralImagePixelType> rawImageMatrix;
+        rawImageMatrix.fromSharedData( rawImgPtr, width, height, depth );
+
+        IntegralImage<IntegralImagePixelType>::staticCompute( integralMatrix, rawImageMatrix );
+
+    }
 
 
-		MultipleROIData allROIs;
-		allROIs.add( &roi );
+    /*** BEGIN OLD FUNCTIONALITY, IF NEEDED ***/
 
-		Booster adaboost;
-		adaboost.setModel( *((BoosterModel *) modelPtr) );
+    // input: multiple imgPtr, gtPtr (arrays of pointers)
+    //        multiple img sizes
+    // returns a BoosterModel *
+    // -- BEWARE: this function is a mix of dirty tricks right now
+    void * train( ImagePixelType **imgPtr, GTPixelType **gtPtr, 
+                  int *width, int *height, int *depth,
+                  int numStacks,
+                  int numStumps, int debugOutput )
+    {
+        BoosterModel *modelPtr = 0;
 
-		adaboost.predict( &allROIs, &predMatrix );
-	}
+        try
+        {
+            ROIData rois[numStacks];                    // TODO: not C++99 compatible?
+            ROIData::IntegralImageType ii[numStacks];   // TODO: remove
+            MultipleROIData allROIs;
 
-	// input: multiple imgPtr, gtPtr (arrays of pointers)
-	//		  multiple img sizes
-	// returns a BoosterModel *
-	// -- BEWARE: this function is a mix of dirty tricks right now
-	void * train( ImagePixelType **imgPtr, GTPixelType **gtPtr, 
-				  int *width, int *height, int *depth,
-				  int numStacks,
-				  int numStumps, int debugOutput )
-	{
-		BoosterModel *modelPtr = 0;
+            for (int i=0; i < numStacks; i++)
+            {
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
 
-		try
-		{
-			ROIData rois[numStacks];					// TODO: not C++99 compatible?
-			ROIData::IntegralImageType ii[numStacks];	// TODO: remove
-			MultipleROIData allROIs;
+                // raw image to integral image
+                // TODO: this should be removed and passed directly to train()
+                ii[i].compute( rois[i].rawImage );
+                rois[i].addII( ii[i].internalImage().data() );
 
-			for (int i=0; i < numStacks; i++)
-			{
-				rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+                allROIs.add( &rois[i] );
+            }
 
-				// raw image to integral image
-				// TODO: this should be removed and passed directly to train()
-				ii[i].compute( rois[i].rawImage );
-				rois[i].addII( ii[i].internalImage().data() );
+            BoosterInputData bdata;
+            bdata.init( &allROIs );
+            bdata.showInfo();
 
-				allROIs.add( &rois[i] );
-			}
+            Booster adaboost;
+            adaboost.setShowDebugInfo( debugOutput != 0 );
 
-			BoosterInputData bdata;
-			bdata.init( &allROIs );
-			bdata.showInfo();
+            adaboost.train( bdata, numStumps );
 
-			Booster adaboost;
-			adaboost.setShowDebugInfo( debugOutput != 0 );
+            // create by copying
+            modelPtr = new BoosterModel( adaboost.model() );
+        }
+        catch( std::exception &e )
+        {
+            printf("Error training: %s\n", e.what());
+            delete modelPtr;
+            
+            return 0;
+        }
 
-			adaboost.train( bdata, numStumps );
+        return modelPtr;
+    }
 
-			// create by copying
-			modelPtr = new BoosterModel( adaboost.model() );
-		}
-		catch( std::exception &e )
-		{
-			printf("Error training: %s\n", e.what());
-			delete modelPtr;
-			
-			return 0;
-		}
+    // input: multiple imgPtr, gtPtr (arrays of pointers)
+    //        multiple img sizes
+    // returns a BoosterModel *
+    // -- BEWARE: this function is a mix of dirty tricks right now
+    void * trainWithChannel( ImagePixelType **imgPtr, GTPixelType **gtPtr,
+                             IntegralImagePixelType **chImgPtr,
+                              int *width, int *height, int *depth,
+                              int numStacks,
+                              int numStumps, int debugOutput )
+    {
+        BoosterModel *modelPtr = 0;
+        try
+        {
+            ROIData rois[numStacks];                    // TODO: not C++99 compatible?
+            MultipleROIData allROIs;
 
-		return modelPtr;
-	}
+            for (int i=0; i < numStacks; i++)
+            {
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+
+                ROIData::IntegralImageType ii;
+                ii.fromSharedData(chImgPtr[i], width[i], height[i], depth[i]);
+                rois[i].addII( ii.internalImage().data() );
+
+                allROIs.add( &rois[i] );
+            }
+
+            BoosterInputData bdata;
+            bdata.init( &allROIs );
+            bdata.showInfo();
+
+            Booster adaboost;
+            adaboost.setShowDebugInfo( debugOutput != 0 );
+
+            adaboost.train( bdata, numStumps );
+
+            // create by copying
+            modelPtr = new BoosterModel( adaboost.model() );
+        }
+        catch( std::exception &e )
+        {
+            printf("Error training: %s\n", e.what());
+            delete modelPtr;
+
+            return 0;
+        }
+
+        return modelPtr;
+    }
+
+    // Prediction
+    //  Internally computes integral image from raw image, thus limited functionality.
+    //  Assumes that predPtr is already allocated, of same size as imgPtr.
+    void predict( void *modelPtr, ImagePixelType *imgPtr, int width, int height, int depth, PredictionPixelType *predPtr )
+    {
+        Matrix3D<PredictionPixelType> predMatrix;
+        predMatrix.fromSharedData( predPtr, width, height, depth );
+
+        // create roi for image, no GT available
+        ROIData roi;
+        roi.init( imgPtr, 0, 0, 0, width, height, depth );
+
+        // raw image to integral image
+        ROIData::IntegralImageType ii;
+        ii.compute( roi.rawImage );
+        roi.addII( ii.internalImage().data() );
+
+
+        MultipleROIData allROIs;
+        allROIs.add( &roi );
+
+        Booster adaboost;
+        adaboost.setModel( *((BoosterModel *) modelPtr) );
+
+        adaboost.predict( &allROIs, &predMatrix );
+    }
+
+
+    // Prediction
+    //  Accepts a single integral image/channel, thus only to be used for testing
+    //  Assumes that predPtr is already allocated, of same size as imgPtr
+    void predictWithChannel( void *modelPtr, ImagePixelType *imgPtr,
+                              IntegralImagePixelType *chImgPtr,
+                              int width, int height, int depth,
+                              PredictionPixelType *predPtr )
+    {
+        Matrix3D<PredictionPixelType> predMatrix;
+        predMatrix.fromSharedData( predPtr, width, height, depth );
+
+        // create roi for image, no GT available
+        ROIData roi;
+        roi.init( imgPtr, 0, 0, 0, width, height, depth );
+
+        // get the precomputed integral images
+        ROIData::IntegralImageType ii;
+        ii.fromSharedData(chImgPtr, width, height, depth);
+        roi.addII( ii.internalImage().data() );
+
+        MultipleROIData allROIs;
+        allROIs.add( &roi );
+
+        Booster adaboost;
+        adaboost.setModel( *((BoosterModel *) modelPtr) );
+
+        adaboost.predict( &allROIs, &predMatrix );
+    }
 }

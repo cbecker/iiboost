@@ -329,6 +329,8 @@ public:
 
 			mModel.add( newWL, alpha );
 		}
+
+		mModel.setNumChannels( bid.imgData->ROIs[0]->integralImages.size() );
 	}
 
 	// predicts roiNo in rois
@@ -343,6 +345,10 @@ public:
 
 		BoosterInputData bd;
 		bd.init(&singleRoiData, true);
+
+		// make sure we are given right number of channels
+		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+			throw std::runtime_error("Number of channels for prediction not the same as for training.");
 
 		const unsigned N = mModel.size();
 		Eigen::ArrayXf weakPred;

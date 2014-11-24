@@ -31,10 +31,10 @@ int main()
 {
 	Matrix3D<ImagePixelType> img, gt;
 
-	if (!img.load("/cvlabdata1/cvlab/espina/sample_data/Madrid_Train.tif"))
+	if (!img.load("/home/pol/code/data/Madrid_Train.tif"))
 		qFatal("Error loading image");
 
-	if (!gt.load("/cvlabdata1/cvlab/espina/sample_data/Madrid_Train_espinagt.tif"))
+	if (!gt.load("/home/pol/code/data/Madrid_Train_espinagt.tif"))
 		qFatal("Error loading image");
 
 

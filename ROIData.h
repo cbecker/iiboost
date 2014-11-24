@@ -264,7 +264,7 @@ public:
                IntegralImagePixelType **intImgPtr,
                unsigned numII,
                unsigned width, unsigned height, unsigned depth,
-               const float zAnisotropyFactor,
+               const float zAnisotropyFactor = 1.0,
                const float rotHessianSigma = 3.5)
     {
 #if USE_MEANVAR_NORMALIZATION

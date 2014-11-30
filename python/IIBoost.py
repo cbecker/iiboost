@@ -170,7 +170,7 @@ class Booster:
 			# check shape/type of img and gt
 			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList) or len(gtStackList) != len(eigVecOfHessianImgList):
 				raise RuntimeError("image, eig vec, gt stack and channels list must of be of same size,",
-														len(imgStackList)," ",len(gtStackList)," ",len(chStackList), " ",len(eigVecOfHessianImgList))
+						    len(imgStackList)," ",len(gtStackList)," ",len(chStackListList), " ",len(eigVecOfHessianImgList))
 
 			for chStackList in chStackListList :
 				if (type(chStackList) != list):
@@ -179,9 +179,10 @@ class Booster:
 				if len(chStackList) != len(chStackListList[0]):
 					raise RuntimeError("Number of channels for each image must be the same")
 
-			for img,gt,ch,eigvec in zip(imgStackList, gtStackList, chStackList, eigVecOfHessianImgList):
-				if img.shape != gt.shape or gt.shape != ch.shape:
-					raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
+			for img,gt,chStackList,eigvec in zip(imgStackList, gtStackList, chStackListList, eigVecOfHessianImgList):
+				for ch in chStackList:
+					if img.shape != gt.shape or gt.shape != ch.shape:
+						raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
 
 				if (img.dtype != np.dtype("uint8")) or \
                     (gt.dtype != np.dtype("uint8")) or \

@@ -104,7 +104,7 @@ class Booster:
 			# check shape/type of img and gt
 			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList):
 				raise RuntimeError("image, gt stack and channels list must of be of same size,",
-														len(imgStackList)," ",len(gtStackList)," ",len(chStackList))
+														len(imgStackList)," ",len(gtStackList)," ",len(chStackListList))
 
 			for chStackList in chStackListList :
 				if (type(chStackList) != list):
@@ -113,9 +113,10 @@ class Booster:
 				if len(chStackList) != len(chStackListList[0]):
 					raise RuntimeError("Number of channels for each image must be the same")
 
-			for img,gt,ch in zip(imgStackList, gtStackList, chStackList):
-				if img.shape != gt.shape or gt.shape != ch.shape:
-					raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
+			for img,gt,chStackList in zip(imgStackList, gtStackList, chStackListList):
+				for ch in chStackList:
+					if img.shape != gt.shape or gt.shape != ch.shape:
+						raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
 
 				if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")) or (ch.dtype != np.dtype("float32")):
 					raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")

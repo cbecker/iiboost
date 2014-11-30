@@ -1,17 +1,13 @@
-import os
-import tempfile
 import cPickle as pickle
-import threading
 
 import numpy
-import h5py
 
 import logging
 logger = logging.getLogger(__name__)
 
 import IIBoost
 
-from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
+from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC, LazyflowPixelwiseClassifierABC
 
 class IIBoostLazyflowClassifierFactory(LazyflowPixelwiseClassifierFactoryABC):
     """
@@ -78,7 +74,7 @@ class IIBoostLazyflowClassifierFactory(LazyflowPixelwiseClassifierFactoryABC):
         if known_labels[0] == 0:
             known_labels = known_labels[1:]
 
-        return IIBoostLazyflowClassifier( model, known_labels )
+        return IIBoostLazyflowClassifier( model, known_labels, feature_count=len(integral_images[0]) )
 
     def get_halo_shape(self, data_axes):
         # FIXME: What halo does IIBoost require?
@@ -98,17 +94,17 @@ class IIBoostLazyflowClassifierFactory(LazyflowPixelwiseClassifierFactoryABC):
         return not self.__eq__(other)
 
 # This assertion should pass if lazyflow is available.
-#from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
-#assert issubclass( IIBoostLazyflowClassifierFactory, LazyflowPixelwiseClassifierFactoryABC )
+from lazyflow.classifiers import LazyflowPixelwiseClassifierFactoryABC
+assert issubclass( IIBoostLazyflowClassifierFactory, LazyflowPixelwiseClassifierFactoryABC )
 
-class IIBoostLazyflowClassifier(object):
+class IIBoostLazyflowClassifier(LazyflowPixelwiseClassifierABC):
     """
     Adapt the IIBoost classifier to the interface lazyflow expects.
     """
-    def __init__(self, model, known_labels):
+    def __init__(self, model, known_labels, feature_count):
         self._known_labels = known_labels
         self._model = model
-        self._lock = threading.Lock()
+        self._feature_count = feature_count
     
     def predict_probabilities_pixelwise(self, image):
         logger.debug( 'predicting with IIBoost' )
@@ -123,22 +119,25 @@ class IIBoostLazyflowClassifier(object):
         image_channels = list( numpy.rollaxis(image, -1, 0) )
         integral_channels = map( self._model.computeIntegralImage, image_channels )
         
-        with self._lock:
-            prediction_img = self._model.predictWithChannels( raw, integral_channels )
-            # Image from model prediction has no channels,
-            #  but lazyflow expects classifiers to produce one channel for each 
-            #  label class.  Here, we simply insert zero-channels for all but the last channel.
-            prediction_img_reshaped = numpy.zeros( prediction_img.shape + (len(self._known_labels),), dtype=numpy.float32 )
-            prediction_img_reshaped[...,-1] = prediction_img
-            
-            assert prediction_img_reshaped.shape == image.shape + (len(self._known_labels),), \
-                "Output image had wrong shape. Expected: {}, Got {}"\
-                "".format( image.shape + len(self._known_labels), prediction_img_reshaped.shape )
-            return prediction_img_reshaped
+        prediction_img = self._model.predictWithChannels( raw, integral_channels )
+        # Image from model prediction has no channels,
+        #  but lazyflow expects classifiers to produce one channel for each 
+        #  label class.  Here, we simply insert zero-channels for all but the last channel.
+        prediction_img_reshaped = numpy.zeros( prediction_img.shape + (len(self._known_labels),), dtype=numpy.float32 )
+        prediction_img_reshaped[...,-1] = prediction_img
+        
+        assert prediction_img_reshaped.shape == image.shape[:-1] + (len(self._known_labels),), \
+            "Output image had wrong shape. Expected: {}, Got {}"\
+            "".format( image.shape[:-1] + (len(self._known_labels),), prediction_img_reshaped.shape )
+        return prediction_img_reshaped
     
     @property
     def known_classes(self):
         return self._known_labels
+
+    @property
+    def feature_count(self):
+        return self._feature_count
 
     def get_halo_shape(self, data_axes):
         # FIXME: What halo does IIBoost require?
@@ -147,21 +146,25 @@ class IIBoostLazyflowClassifier(object):
         return halo_shape
 
     def serialize_hdf5(self, h5py_group):
-        # FIXME: save the classifier
-        
         h5py_group['known_labels'] = self._known_labels
+        h5py_group['feature_count'] = self._feature_count
         
         # This field is required for all classifiers
         h5py_group['pickled_type'] = pickle.dumps( type(self) )
+        
+        # Just store the string IIBoost gives us
+        h5py_group['serialized_model'] = self._model.serialize()
 
     @classmethod
     def deserialize_hdf5(cls, h5py_group):
+        model_str = h5py_group['serialized_model'][()]
+        model = IIBoost.Booster()
+        model.deserialize(model_str)
+                
         known_labels = list(h5py_group['known_labels'][:])
-        
-        # FIXME: Implement deserialization
-        raise NotImplementedError
-        #return IIBoostClassifier()
+        feature_count = h5py_group['feature_count'][()]
+        return IIBoostLazyflowClassifier(model, known_labels, feature_count)
 
 # This assertion should pass if lazyflow is available.
-#from lazyflow.classifiers import LazyflowPixelwiseClassifierABC
-#assert issubclass( IIBoostLazyflowClassifier, LazyflowPixelwiseClassifierABC )
+from lazyflow.classifiers import LazyflowPixelwiseClassifierABC
+assert issubclass( IIBoostLazyflowClassifier, LazyflowPixelwiseClassifierABC )

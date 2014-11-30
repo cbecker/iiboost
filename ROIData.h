@@ -246,8 +246,8 @@ public:
     // initialize from images, using move semantics
     void init( Matrix3D<ImagePixelType> &&rawImg, 
                Matrix3D<ImagePixelType> &&gtImg, 
-               const float rotHessianSigma = 3.5,
-               const float zAnisotropyFactor = 1.0 )
+               const float zAnisotropyFactor = 1.0,
+               const float rotHessianSigma = 3.5 )
     {
         // in case we had other info before
         freeIntegralImages();
@@ -264,8 +264,8 @@ public:
                IntegralImagePixelType **intImgPtr,
                unsigned numII,
                unsigned width, unsigned height, unsigned depth,
-               const float rotHessianSigma = 3.5,
-               const float zAnisotropyFactor = 1.0 )
+               const float zAnisotropyFactor = 1.0,
+               const float rotHessianSigma = 3.5)
     {
 #if USE_MEANVAR_NORMALIZATION
         qFatal("init() with pointers not supported with mean variance normalization, needs fix!");

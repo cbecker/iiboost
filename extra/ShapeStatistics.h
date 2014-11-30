@@ -48,7 +48,9 @@ public:
     }
 
     inline unsigned int numVoxels() const {
-        return shapeInfo->GetSize();
+        //FIXME tell carlos this does not compile with ITK4.4
+        //return shapeInfo->GetSize();
+        return shapeInfo->GetNumberOfPixels();
     }
 
     inline unsigned int annotationLabel() const {

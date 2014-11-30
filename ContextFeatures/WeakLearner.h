@@ -21,6 +21,8 @@
 
 #include <string>
 #include "globaldefs.h"
+//FIXME I required this
+#include "ContextFeatures/ContextRelativePoses.h"
 
 // for serialization
 #include <rapidjson/document.h>

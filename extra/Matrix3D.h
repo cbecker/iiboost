@@ -417,7 +417,7 @@ public:
 		mKeepOnDestr = keepOnDestruction;
 	}
     
-    bool load( const std::string &fName )  // load from file
+    bool load( const std::string &fName, bool keepOnDestruction = false )  // load from file
     {
         try
         {
@@ -434,7 +434,7 @@ public:
             mData = &img->GetPixel( index );
 
             //img->Register();    //so it won't delete the data ;)
-            img->GetPixelContainer()->SetContainerManageMemory(false);
+            img->GetPixelContainer()->SetContainerManageMemory(keepOnDestruction);
 
             typename ItkImageType::SizeType imSize = img->GetLargestPossibleRegion().GetSize();
             mWidth = imSize[0];
@@ -442,7 +442,7 @@ public:
             mDepth = imSize[2];
 
             updateCache();
-            mKeepOnDestr = false;
+            mKeepOnDestr = keepOnDestruction;
         }
         catch(std::exception &e)
         {

@@ -20,18 +20,16 @@
 #define _GLOBAL_DEFS_H_
 
 /** Important Types **/
-
 // We use floats, but this will do well only for small ROIs
 //  Otherwise, switch to double
 typedef float 			IntegralImagePixelType;  // this can make a huge difference in mem usage
-
 typedef unsigned char	ImagePixelType;
 typedef double AdaBoostErrorType;
 
 // Ground Truth
 typedef unsigned char	GTPixelType;
-static const GTPixelType GTNegLabel = 1;
-static const GTPixelType GTPosLabel = 2;
+static const GTPixelType GTNegLabel = 128;
+static const GTPixelType GTPosLabel = 255;
 
 // supervoxel or voxel-based?
 // So far, no supervoxel support available

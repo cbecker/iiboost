@@ -30,19 +30,18 @@
 
 // an operator to speed up prediction
 template<typename PredType>
-struct BoosterPredictOperator
+struct BoosterPredictOperatorNoAtomic
 {
 	typedef typename PredType::Scalar ScalarType;
 	
 	PredType &mPred;
 	const ScalarType mAlpha;
 
-	inline BoosterPredictOperator( PredType &pred, ScalarType alpha ) :
+	inline BoosterPredictOperatorNoAtomic( PredType &pred, ScalarType alpha ) :
 		mPred(pred), mAlpha(alpha) {}
 
 	inline void operator ()( const unsigned i, const bool what )
 	{
-		#pragma omp atomic
 		mPred.coeffRef(i) += what ? mAlpha : -mAlpha;
 	}
 };
@@ -359,13 +358,69 @@ public:
 		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
 		MapType predMap( pred->data(), pred->numElem() );
 
-		#pragma omp parallel for
 		for (unsigned i=0; i < N; i++)
 		{
-			BoosterPredictOperator<MapType> op(predMap, mModel[i].alpha);
+			BoosterPredictOperatorNoAtomic<MapType> op(predMap, mModel[i].alpha);
 			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, op, numThreads );
 		}
 	}
+
+	void predictDoublePolarity( MultipleROIData *rois,   //rois is not const bcos we need to invert matrices
+				  Matrix3D<float> *pred,
+				  unsigned roiNo = 0,
+				  unsigned numThreads = omp_get_max_threads() ) const
+	{
+		MultipleROIData singleRoiData;
+		singleRoiData.init( rois->zAnisotropyFactor );
+		singleRoiData.add( rois->ROIs[roiNo] );
+
+		printf("Z anis: %f\n", rois->zAnisotropyFactor);
+
+		BoosterInputData bd;
+		bd.init(&singleRoiData, true);
+
+		// make sure we are given right number of channels
+		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+			throw std::runtime_error("Number of channels for prediction not the same as for training.");
+
+		const unsigned N = mModel.size();
+		Eigen::ArrayXf weakPred;
+		
+		pred->reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+		pred->fill(0);
+
+		Matrix3D<float> predInv;
+		predInv.reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+
+		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
+		MapType predMap( pred->data(), pred->numElem() );
+		MapType predInvMap( predInv.data(), predInv.numElem() );
+
+		// predict for current orientation
+		for (unsigned i=0; i < N; i++)
+		{
+			BoosterPredictOperatorNoAtomic<MapType> op(predMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, op, numThreads );
+		}
+
+		// invert orientation estimate
+		singleRoiData.ROIs[0]->invertOrientation();
+
+		// predict for inverted orientation
+		for (unsigned i=0; i < N; i++)
+		{
+			BoosterPredictOperatorNoAtomic<MapType> opInv(predInvMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, opInv, numThreads );
+		}
+
+		// undo orientation inversion
+		singleRoiData.ROIs[0]->invertOrientation();
+
+		// check max, return max
+		for (unsigned i=0; i < N; i++)
+			predMap.coeffRef(i) = std::max( predInvMap.coeff(i), predMap.coeff(i) );
+	}
+
 };
 
 #endif

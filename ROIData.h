@@ -346,6 +346,20 @@ public:
         freeIntegralImages();
     }
 
+    // invert Z-orientation of orientation estimate
+    // used for synapses in particular
+    void invertOrientation()
+    {
+        for ( unsigned i=0; i < rawImage.numElem(); i++ )
+        {
+            // we need to un-const it first
+            // we want to keep y-direction, but invert z
+            //      so we have to invert x and z only
+            ((RotationMatrixType *)rotMatrices)[i].col(0) = - ((RotationMatrixType *)rotMatrices)[i].col(0);
+            ((RotationMatrixType *)rotMatrices)[i].col(2) = - ((RotationMatrixType *)rotMatrices)[i].col(2);
+        }
+    }
+
 
     // for debugging only
     void setAllOrientationsToIdentity()

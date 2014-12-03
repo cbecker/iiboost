@@ -99,10 +99,16 @@ struct BoosterInputData
 		qDebug("--- End BoosterInputData ---");
 	}
 
-	void init( const MultipleROIData *rois, bool ignoreGT = false, bool debugInfo = false )
+	void init(  const MultipleROIData *rois, 
+				bool ignoreGT = false, 
+				bool debugInfo = false,
+				const int minBorderDist = 10 )
 	{
 		clear();
 		imgData = rois;
+
+		// z border ignore distance
+		const int minBorderDistZ = std::min( (int)1, (int)ceil(minBorderDist/rois->zAnisotropyFactor) );
 
 		for (unsigned curROIIdx=0; curROIIdx < imgData->numROIs(); curROIIdx++)
 		{
@@ -118,6 +124,10 @@ struct BoosterInputData
 				const Matrix3D<GTPixelType> &gt = roi->gtImage;
 				const unsigned numVoxels = gt.numElem();
 
+				const int maxX = gt.width() - minBorderDist;
+				const int maxY = gt.height() - minBorderDist;
+				const int maxZ = gt.depth() - minBorderDistZ;
+
 				// go through the image, find pos/neg samples
 				for (unsigned i=0; i < numVoxels; i++)
 				{
@@ -125,15 +135,25 @@ struct BoosterInputData
 
 					if ( (label == GTPosLabel) || (label == GTNegLabel) )
 					{
-						sampLabels.push_back(label);
-						sampOffset.push_back(i);
 
 						{
 							unsigned x,y,z;
 							gt.idxToCoord(i, x, y, z);	// convert to coords
 
+							if ( x < minBorderDist )	continue;
+							if ( x > maxX )	continue;
+							
+							if ( y < minBorderDist )	continue;
+							if ( y > maxY )	continue;
+
+							if ( z < minBorderDistZ )	continue;
+							if ( z > maxZ )	continue;
+
 							sampLocation.push_back( LocType(x,y,z) );
 						}
+
+						sampLabels.push_back(label);
+						sampOffset.push_back(i);
 
 						numFound++;
 					}

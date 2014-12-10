@@ -25,6 +25,8 @@
 #include "utils/DiscreteRandomSampler.h"
 #include <omp.h>
 
+#include "SmartPtrs.h"
+
 // we need the boosting model
 #include "BoosterModel.h"
 
@@ -333,17 +335,17 @@ public:
 	}
 
 	// predicts roiNo in rois
-	void predict( const MultipleROIData *rois, 
+	void predict( MultipleROIData &rois,
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
 				  unsigned numThreads = omp_get_max_threads() ) const
 	{
 		MultipleROIData singleRoiData;
-		singleRoiData.init( rois->zAnisotropyFactor );
-		singleRoiData.add( rois->ROIs[roiNo] );
+		singleRoiData.init( rois.zAnisotropyFactor );
+		singleRoiData.add( rois.ROIs[roiNo] );
 
 		BoosterInputData bd;
-		bd.init(&singleRoiData, true);
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
 
 		// make sure we are given right number of channels
 		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
@@ -365,19 +367,19 @@ public:
 		}
 	}
 
-	void predictDoublePolarity( MultipleROIData *rois,   //rois is not const bcos we need to invert matrices
+	void predictDoublePolarity( MultipleROIData &rois,   //rois is not const bcos we need to invert matrices
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
 				  unsigned numThreads = omp_get_max_threads() ) const
 	{
 		MultipleROIData singleRoiData;
-		singleRoiData.init( rois->zAnisotropyFactor );
-		singleRoiData.add( rois->ROIs[roiNo] );
+		singleRoiData.init( rois.zAnisotropyFactor );
+		singleRoiData.add( rois.ROIs[roiNo] );
 
-		printf("Z anis: %f\n", rois->zAnisotropyFactor);
+		printf("Z anis: %f\n", rois.zAnisotropyFactor);
 
 		BoosterInputData bd;
-		bd.init(&singleRoiData, true);
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
 
 		// make sure we are given right number of channels
 		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )

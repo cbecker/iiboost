@@ -22,12 +22,16 @@
 #include "ROIData.h"
 #include <Eigen/Dense>
 #include "globaldefs.h"
+#include <memory>
+
 
 // contains image data, integral images, etc
 struct MultipleROIData
 {
+	typedef std::shared_ptr<ROIData>	ROIDataPtr;
+
 	// list of ROIs
-	std::vector<ROIData *>	ROIs;
+	std::vector<ROIDataPtr>	ROIs;
 
 	// anisotropy in Z
 	float	zAnisotropyFactor;
@@ -45,9 +49,9 @@ struct MultipleROIData
 		ROIs.clear();
 	}
 
-	void add( ROIData *roi )
+	void add( ROIDataPtr roiPtr )
 	{
-		ROIs.push_back(roi);
+		ROIs.push_back(roiPtr);
 	}
 
 	inline unsigned numROIs() const { return ROIs.size(); }
@@ -64,7 +68,9 @@ struct BoosterInputData
 	//  we use float bcos it avoids cast while training/predicting
 	typedef Eigen::Vector3f	LocType;
 
-	const MultipleROIData 	*imgData; // image data itself, containing many ROIs
+	typedef std::shared_ptr<const MultipleROIData>	MultipleROIDataPtr;
+
+	MultipleROIDataPtr 	imgData; // image data itself, containing many ROIs
 
 	// now data for each sample
 	std::vector<unsigned>		sampROI;		// which ROI it belongs to
@@ -99,7 +105,7 @@ struct BoosterInputData
 		qDebug("--- End BoosterInputData ---");
 	}
 
-	void init(  const MultipleROIData *rois, 
+	void init(  MultipleROIDataPtr rois,
 				bool ignoreGT = false, 
 				bool debugInfo = false,
 				const int minBorderDist = 10 )
@@ -112,7 +118,7 @@ struct BoosterInputData
 
 		for (unsigned curROIIdx=0; curROIIdx < imgData->numROIs(); curROIIdx++)
 		{
-			const ROIData *roi = imgData->ROIs[curROIIdx];
+			const MultipleROIData::ROIDataPtr &roi = imgData->ROIs[curROIIdx];
 
 			// find out if GT is there
 			const bool hasGT = (roi->gtImage.isEmpty() == false) && (!ignoreGT);

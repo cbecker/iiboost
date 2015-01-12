@@ -68,9 +68,10 @@ struct BoosterInputData
 	//  we use float bcos it avoids cast while training/predicting
 	typedef Eigen::Vector3f	LocType;
 
-	typedef std::shared_ptr<const MultipleROIData>	MultipleROIDataPtr;
+    typedef std::shared_ptr<const MultipleROIData>	MultipleROIDataConstPtr;
+    typedef std::shared_ptr<MultipleROIData>	MultipleROIDataPtr;
 
-	MultipleROIDataPtr 	imgData; // image data itself, containing many ROIs
+    MultipleROIDataConstPtr 	imgData; // image data itself, containing many ROIs
 
 	// now data for each sample
 	std::vector<unsigned>		sampROI;		// which ROI it belongs to
@@ -105,7 +106,7 @@ struct BoosterInputData
 		qDebug("--- End BoosterInputData ---");
 	}
 
-	void init(  MultipleROIDataPtr rois,
+    void init(  MultipleROIDataConstPtr rois,
 				bool ignoreGT = false, 
 				bool debugInfo = false,
 				const int minBorderDist = 10 )

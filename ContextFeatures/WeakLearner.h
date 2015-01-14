@@ -138,12 +138,14 @@ public:
     //     classifyLowLevel<SampleIdxVector, float, negativeValue>( sampleIdxs, poses, imgData, prediction.data(), numThreads );
     // }
 
-    template<typename PredOpType>
+    // if TSelectiveEvaluation = true  => you must pass a valid selectiveEval ptr
+    template<typename PredOpType, bool TSelectiveEvaluation = false>
     void classifySingleROIWithOp(
                            const ContextRelativePoses &poses,
                            const BoosterInputData &bid,
                            PredOpType &predOp,
-                           const unsigned numThreads = 1) const
+                           const unsigned numThreads = 1,
+                           const std::vector<bool>  *selectiveEval = 0 ) const
     {
         typedef typename ROIData::IntegralImageType IntegralImageType;
         const MultipleROIData &imgData = *bid.imgData;
@@ -163,6 +165,10 @@ public:
             #pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
+                if (TSelectiveEvaluation)
+                    if ( (*selectiveEval)[i] == false )
+                        continue;       // no need for evaluation
+
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
                 
@@ -179,6 +185,10 @@ public:
             #pragma omp parallel for num_threads(numThreads)
             for (unsigned int i=0; i < N; i++)
             {
+                if (TSelectiveEvaluation)
+                    if ( (*selectiveEval)[i] == false )
+                        continue;       // no need for evaluation
+
                 BoxPosition box;
                 poses.poseIndexedFeature( bid, mPoseIdx, i, &box );
             
@@ -193,6 +203,7 @@ public:
             }
         }
     }
+
 
     void classifyMultipleROIs(
                    const ContextRelativePoses &poses,

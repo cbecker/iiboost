@@ -73,6 +73,11 @@ private:
 
 	DiscreteRandomSampler<WeightsArrayType> mSampler;
 
+
+	// early stopping constants, see Booster() for their values
+	unsigned mEarlyStopCheckEvery;
+	float    mEarlyStopNegLimit;
+
 public:
 	Booster()
 	{
@@ -80,6 +85,10 @@ public:
 		mNumToSubsamplePerClass = 500;
 		mLinesearchOnWholeData = true;
 		mShowDebugInfo = false;
+
+		// early stopping
+		mEarlyStopNegLimit = -1.0;
+		mEarlyStopCheckEvery = 20;
 	}
 
 	void setShowDebugInfo(bool yes) { mShowDebugInfo = yes; }
@@ -335,11 +344,20 @@ public:
 	}
 
 	// predicts roiNo in rois
+	template<bool TUseEarlyStopping = false>
 	void predict( MultipleROIData &rois,
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
 				  unsigned numThreads = omp_get_max_threads() ) const
 	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
 		MultipleROIData singleRoiData;
 		singleRoiData.init( rois.zAnisotropyFactor );
 		singleRoiData.add( rois.ROIs[roiNo] );
@@ -360,18 +378,49 @@ public:
 		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
 		MapType predMap( pred->data(), pred->numElem() );
 
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
 		for (unsigned i=0; i < N; i++)
 		{
-			BoosterPredictOperatorNoAtomic<MapType> op(predMap, mModel[i].alpha);
-			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, op, numThreads );
+			typedef BoosterPredictOperatorNoAtomic<MapType>  OpType;
+
+			OpType op(predMap, mModel[i].alpha);
+
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
 		}
 	}
 
+
+	// probes the two possible polarities, return whoever is max
+	// works with early stopping if desired
+	template<bool TUseEarlyStopping = false>
 	void predictDoublePolarity( MultipleROIData &rois,   //rois is not const bcos we need to invert matrices
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
 				  unsigned numThreads = omp_get_max_threads() ) const
 	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
 		MultipleROIData singleRoiData;
 		singleRoiData.init( rois.zAnisotropyFactor );
 		singleRoiData.add( rois.ROIs[roiNo] );
@@ -398,27 +447,65 @@ public:
 		MapType predMap( pred->data(), pred->numElem() );
 		MapType predInvMap( predInv.data(), predInv.numElem() );
 
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
 		// predict for current orientation
 		for (unsigned i=0; i < N; i++)
 		{
-			BoosterPredictOperatorNoAtomic<MapType> op(predMap, mModel[i].alpha);
-			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, op, numThreads );
+			typedef BoosterPredictOperatorNoAtomic<MapType>	OpType;
+
+			OpType op(predMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
 		}
+
+
+		// --------- Now other orientation --------
 
 		// invert orientation estimate
 		singleRoiData.ROIs[0]->invertOrientation();
 
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
 		// predict for inverted orientation
 		for (unsigned i=0; i < N; i++)
 		{
-			BoosterPredictOperatorNoAtomic<MapType> opInv(predInvMap, mModel[i].alpha);
-			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, opInv, numThreads );
+			typedef BoosterPredictOperatorNoAtomic<MapType>	OpType;
+
+			OpType opInv(predInvMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, opInv, numThreads, &earlyStopVector );
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
 		}
 
 		// undo orientation inversion
 		singleRoiData.ROIs[0]->invertOrientation();
 
-		// check max, return max
+
+		// --------- check max, return max
 		for (unsigned i=0; i < N; i++)
 			predMap.coeffRef(i) = std::max( predInvMap.coeff(i), predMap.coeff(i) );
 	}

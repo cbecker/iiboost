@@ -59,10 +59,36 @@ int main()
 
 	// predict
 	Matrix3D<float> predImg;
-	TimerRT timer; timer.reset();
+	
+	TimerRT timer; 
+
+	// ---- No early stopping
+	timer.reset();
 	adaboost.predict( allROIs, &predImg );
 	qDebug("Elapsed: %f", timer.elapsed());
 	predImg.save("/tmp/test.nrrd");
+
+
+	// ---- With early stopping
+	timer.reset();
+	adaboost.predict<true>( allROIs, &predImg );
+	qDebug("Elapsed early stop: %f", timer.elapsed());
+	predImg.save("/tmp/test-earlystop.nrrd");
+
+
+	// --- now same tests, but with predict with double polarity
+	// ---- No early stopping
+	timer.reset();
+	adaboost.predictDoublePolarity( allROIs, &predImg );
+	qDebug("Elapsed: %f", timer.elapsed());
+	predImg.save("/tmp/test-2pol.nrrd");
+
+
+	// ---- With early stopping
+	timer.reset();
+	adaboost.predictDoublePolarity<true>( allROIs, &predImg );
+	qDebug("Elapsed early stop: %f", timer.elapsed());
+	predImg.save("/tmp/test-2pol-earlystop.nrrd");
 
 	// save JSON model
 	if (!adaboost.saveModelToFile( "/tmp/model.json" ))

@@ -26,6 +26,7 @@
 
 
 // contains image data, integral images, etc
+//  To add ROIs, use add(), do not add them directly yourself to ROIs!
 struct MultipleROIData
 {
 	typedef std::shared_ptr<ROIData>	ROIDataPtr;
@@ -33,16 +34,16 @@ struct MultipleROIData
 	// list of ROIs
 	std::vector<ROIDataPtr>	ROIs;
 
+private:
 	// anisotropy in Z
-	float	zAnisotropyFactor;
-	float	invZAnisotropyFactor;	// automatically updated with init()
+	float	mZAnisotropyFactor;
+	float	mInvZAnisotropyFactor;	// automatically updated with init()
+	bool	mInitialized;
 
-
-	void init( float _zAnisotropyFact ) 
-	{
-		zAnisotropyFactor = _zAnisotropyFact;
-		invZAnisotropyFactor = 1.0 / zAnisotropyFactor;
-	}
+public:
+	inline float  zAnisotropyFactor() const { return mZAnisotropyFactor; }
+	inline float  invZAnisotropyFactor() const { return mInvZAnisotropyFactor; }
+	inline bool   initialized() const { return mInitialized; }
 
 	void clear()
 	{
@@ -51,12 +52,35 @@ struct MultipleROIData
 
 	void add( ROIDataPtr roiPtr )
 	{
+		// check if roiPtr was initialized first
+		if (!roiPtr->initialized())
+			qFatal("MultipleROIData: trying to add an uninitialized ROI");
+
+		// if we have already one, check that the anisotropy factors are the same
+		if ( this->initialized() && ( roiPtr->zAnisotropyFactor() != zAnisotropyFactor() ) )
+			qFatal("MultipleROIData: zAnisotropy factor does not match: %f / %f", roiPtr->zAnisotropyFactor(), zAnisotropyFactor());
+
+
+		// update anisotropy factor if first one begin added
+		if ( ! this->initialized() )
+		{
+			// then set anisotropy factor
+			mZAnisotropyFactor = roiPtr->zAnisotropyFactor();
+			mInvZAnisotropyFactor = 1.0 / mZAnisotropyFactor;
+
+			mInitialized = true;
+		}
+
 		ROIs.push_back(roiPtr);
 	}
 
 	inline unsigned numROIs() const { return ROIs.size(); }
 
-	MultipleROIData() { zAnisotropyFactor = invZAnisotropyFactor = 1.0; }
+	MultipleROIData() 
+	{ 
+		mZAnisotropyFactor = mInvZAnisotropyFactor = 0;
+		mInitialized = false;
+	}
 };
 
 
@@ -80,6 +104,17 @@ struct BoosterInputData
 	std::vector<LocType> 		sampLocation;	// x,y,z location
 	std::vector<unsigned>		sampOffset;		// offset in terms of the 3D image
 
+private:
+	bool 	mInitialized;
+
+public:
+	inline bool initialized() const { return mInitialized; }
+
+	BoosterInputData()
+	{
+		mInitialized = false;
+	}
+
 	void clear()
 	{
 		sampROI.clear();
@@ -91,7 +126,7 @@ struct BoosterInputData
 	void showInfo()
 	{
 		qDebug("--- BoosterInputData ---");
-		qDebug("zAnisotropyFactor: %.4f", imgData->zAnisotropyFactor);
+		qDebug("zAnisotropyFactor: %.4f", imgData->zAnisotropyFactor());
 		qDebug("\tNum ROIs: %lu", imgData->ROIs.size());
 
 		unsigned nPos = 0, nNeg = 0;
@@ -111,11 +146,16 @@ struct BoosterInputData
 				bool debugInfo = false,
 				const int minBorderDist = 10 )
 	{
+		// check if rois are correctly initialized
+		if ( !rois->initialized() )
+			qFatal("BoosterInputData: rois not initialized properly.");
+
 		clear();
+
 		imgData = rois;
 
 		// z border ignore distance
-		const int minBorderDistZ = std::min( (int)1, (int)ceil(minBorderDist/rois->zAnisotropyFactor) );
+		const int minBorderDistZ = std::min( (int)1, (int)ceil(minBorderDist/rois->zAnisotropyFactor()) );
 
 		for (unsigned curROIIdx=0; curROIIdx < imgData->numROIs(); curROIIdx++)
 		{
@@ -193,6 +233,8 @@ struct BoosterInputData
 			if (debugInfo)
 				qDebug("Added ROI %u: %u samples", curROIIdx, numFound);
 		}
+
+		mInitialized = true;
 	}
 };
 

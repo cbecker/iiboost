@@ -48,6 +48,9 @@ private:
     typedef AllEigenVectorsOfHessian::EigenVectorImageType  ItkEigenVectorImageType;
     ItkEigenVectorImageType::Pointer  rotMatricesImg;
 
+    float       mZAnisotropyFactor;
+    bool        mInitialized;           // if it has been initialized with init() or not
+
 public:
 
     // type of channels, needed specially for mean-var norm
@@ -101,14 +104,16 @@ public:
 
 
 //////////////////////////////////////////////////////////////////////////////////////
+    inline bool initialized() const { return mInitialized; }
+    inline float zAnisotropyFactor() const { return mZAnisotropyFactor; }
 
     // computes rotation matrices from raw image
-    void updateRotationMatrices( const float rotHessianSigma, const float zAnisotropyFactor )
+    void updateRotationMatrices( const float rotHessianSigma )
     {
         // compute rotation matrix
         rotMatricesImg = 
             AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
-                rotHessianSigma, zAnisotropyFactor, rawImage.asItkImage(), 
+                rotHessianSigma, mZAnisotropyFactor, rawImage.asItkImage(), 
                 AllEigenVectorsOfHessian::EByMagnitude );
 
         // convert pointers
@@ -251,11 +256,13 @@ public:
     {
         // in case we had other info before
         freeIntegralImages();
+        mZAnisotropyFactor = zAnisotropyFactor;
 
         rawImage = std::move(rawImg);
         gtImage = std::move(gtImg);
 
-        updateRotationMatrices( rotHessianSigma, zAnisotropyFactor );
+        updateRotationMatrices( rotHessianSigma );
+        mInitialized = true;
     }
 
     // initialize from pointers, which must remain valid
@@ -272,11 +279,12 @@ public:
 #endif
         // in case we had other info before
         freeIntegralImages();
+        mZAnisotropyFactor = zAnisotropyFactor;
 
         rawImage.fromSharedData( rawImgPtr, width, height, depth );
         gtImage.fromSharedData( gtImgPtr, width, height, depth );
 
-        updateRotationMatrices( rotHessianSigma, zAnisotropyFactor );
+        updateRotationMatrices( rotHessianSigma );
 
         for (unsigned i=0; i < numII; i++)
         {
@@ -286,6 +294,8 @@ public:
                                                    height,
                                                    depth );
         }
+
+        mInitialized = true;
     }
 
     // it won't free pointer data
@@ -346,18 +356,28 @@ public:
         freeIntegralImages();
     }
 
+    ROIData()
+    {
+        mZAnisotropyFactor = 0; // indicates invalid anisotropy factor
+        mInitialized = false;
+    }
+
+    // inverts orientation of voxel with ID idx
+    inline void invertOrientation( unsigned idx )
+    {
+        // we need to un-const it first
+        // we want to keep y-direction, but invert z
+        //      so we have to invert x and z only
+        ((RotationMatrixType *)rotMatrices)[idx].col(0) = - ((RotationMatrixType *)rotMatrices)[idx].col(0);
+        ((RotationMatrixType *)rotMatrices)[idx].col(2) = - ((RotationMatrixType *)rotMatrices)[idx].col(2);
+    }
+
     // invert Z-orientation of orientation estimate
-    // used for synapses in particular
+    // used for synapses in particular. Inverts orientation of all voxels
     void invertOrientation()
     {
         for ( unsigned i=0; i < rawImage.numElem(); i++ )
-        {
-            // we need to un-const it first
-            // we want to keep y-direction, but invert z
-            //      so we have to invert x and z only
-            ((RotationMatrixType *)rotMatrices)[i].col(0) = - ((RotationMatrixType *)rotMatrices)[i].col(0);
-            ((RotationMatrixType *)rotMatrices)[i].col(2) = - ((RotationMatrixType *)rotMatrices)[i].col(2);
-        }
+            invertOrientation(i);
     }
 
 

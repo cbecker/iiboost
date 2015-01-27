@@ -81,9 +81,9 @@ private:
 public:
 	Booster()
 	{
-		mWeakLearnersPerIter = 500;
-		mNumToSubsamplePerClass = 500;
-		mLinesearchOnWholeData = true;
+		mWeakLearnersPerIter = 1000;
+		mNumToSubsamplePerClass = 1000;
+		mLinesearchOnWholeData = false;
 		mShowDebugInfo = false;
 
 		// early stopping
@@ -249,6 +249,10 @@ public:
 
 	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = omp_get_max_threads() )
 	{
+		// sanity check, was bid correctly initialized?
+		if ( !bid.initialized() )
+			qFatal("Booster::train(): bid not properly initialized.");
+
 		// num samples
 		const unsigned N = bid.sampLabels.size();
 
@@ -359,7 +363,6 @@ public:
 		std::vector<bool>	earlyStopVector;
 
 		MultipleROIData singleRoiData;
-		singleRoiData.init( rois.zAnisotropyFactor );
 		singleRoiData.add( rois.ROIs[roiNo] );
 
 		BoosterInputData bd;
@@ -404,6 +407,91 @@ public:
 		}
 	}
 
+	// it predicts feature 0, then feature 1, etc.
+	// thus it behaves differently for early stopping (better it seems, actually)
+	template<bool TUseEarlyStopping = false>
+	void predictWithFeatureOrdering( MultipleROIData &rois,
+				  Matrix3D<float> *pred,
+				  unsigned roiNo = 0,
+				  unsigned numThreads = omp_get_max_threads() ) const
+	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
+		MultipleROIData singleRoiData;
+		singleRoiData.add( rois.ROIs[roiNo] );
+
+		BoosterInputData bd;
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
+
+		// make sure we are given right number of channels
+		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+			throw std::runtime_error("Number of channels for prediction not the same as for training.");
+
+		const unsigned N = mModel.size();
+		Eigen::ArrayXf weakPred;
+		
+		pred->reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+		pred->fill(0);
+
+		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
+		MapType predMap( pred->data(), pred->numElem() );
+
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
+
+		// separate according to feature ID
+        typedef std::multimap<unsigned, unsigned> MultiMapType;
+
+        MultiMapType map;
+
+        for (unsigned i=0; i < mModel.size(); i++)
+            map.insert( std::pair<unsigned, unsigned>( mModel[i].wl.channel(), i ) );
+
+        unsigned evalIter = 0;  // counts number of iterations in the next loop
+
+        // go through each key / feature
+        const unsigned maxKey = std::numeric_limits<unsigned>::max();
+        unsigned prevKey = maxKey;
+        for( MultiMapType::iterator it = map.begin(), end = map.end();
+               it != end;
+               it++ )
+        {
+        	const unsigned curKey = it->first;
+            const unsigned curStump = it->second;
+
+            prevKey = curKey;
+
+            // now the real processing takes place
+            typedef BoosterPredictOperatorNoAtomic<MapType>  OpType;
+			OpType op(predMap, mModel[curStump].alpha);
+
+			mModel[curStump].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+
+            // early stopping
+            if ( TUseEarlyStopping )
+				if ( evalIter % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
+
+			evalIter++;
+        }
+	}
+
 
 	// probes the two possible polarities, return whoever is max
 	// works with early stopping if desired
@@ -422,10 +510,9 @@ public:
 		std::vector<bool>	earlyStopVector;
 
 		MultipleROIData singleRoiData;
-		singleRoiData.init( rois.zAnisotropyFactor );
 		singleRoiData.add( rois.ROIs[roiNo] );
 
-		printf("Z anis: %f\n", rois.zAnisotropyFactor);
+		printf("Z anis: %f\n", rois.zAnisotropyFactor());
 
 		BoosterInputData bd;
 		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);

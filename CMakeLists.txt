@@ -133,7 +133,7 @@ endif()
 
 
 ## extra tests
-if(EXISTS "${ContextCueBoosting_SOURCE_DIR}/testDescriptor.cpp")
-    add_executable( testDescriptor testDescriptor.cpp slic/LKM.cpp slic/utils.cpp )
-    target_link_libraries( testDescriptor ${COMMON_LIBS} )
+if(EXISTS "${ContextCueBoosting_SOURCE_DIR}/mytest.cpp")
+    add_executable( mytest mytest.cpp slic/LKM.cpp slic/utils.cpp )
+    target_link_libraries( mytest ${COMMON_LIBS} )
 endif()

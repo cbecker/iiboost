@@ -512,7 +512,7 @@ public:
 		MultipleROIData singleRoiData;
 		singleRoiData.add( rois.ROIs[roiNo] );
 
-		printf("Z anis: %f\n", rois.zAnisotropyFactor);
+		printf("Z anis: %f\n", rois.zAnisotropyFactor());
 
 		BoosterInputData bd;
 		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);

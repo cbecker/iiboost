@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 import os
-from IIBoost import Booster
+from iiboost import Booster
 from sklearn.externals import joblib	# to load data
 
 # to show something
@@ -15,17 +15,17 @@ import faulthandler
 faulthandler.enable()
 
 #dir = os.path.split(__file__)[0]
-os.chdir("/Users/bergs/Documents/workspace/iiboost/build")
+#os.chdir("/Users/bergs/Documents/workspace/iiboost/build")
 
 # load data
-gt = joblib.load("gt.jlb")
-img = joblib.load("img.jlb")
+gt = joblib.load("../../testData/gt.jlb")
+img = joblib.load("../../testData/img.jlb")
 
 import threading
 model = Booster()
 model.train( [img], [gt], numStumps=2, debugOutput=True)
 
-img2 = joblib.load("img.jlb")
+img2 = joblib.load("../../testData/img.jlb")
 
 def predict():
     model.predict( img2 )

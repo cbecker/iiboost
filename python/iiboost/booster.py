@@ -16,10 +16,14 @@
 ## along with this program. If not, see <http://www.gnu.org/licenses/>.         ##
 ##////////////////////////////////////////////////////////////////////////////////
 
+import os
 import numpy as np
 import ctypes
 
 from exceptions import RuntimeError
+
+# libiiboost_python.so must reside in the same directory as this module.
+libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
 
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
@@ -47,8 +51,6 @@ def propListToCArray( L, prop, cArrayElType ):
 class Booster:
 	""" Booster class based on context cue boosting """
 
-	libName = "libiiboost_python.so"
-
 	# will hold C pointer to model
 	modelPtr = None
 
@@ -56,7 +58,7 @@ class Booster:
 	libPtr = None
 
 	def __init__(self):
-		self.libPtr = ctypes.CDLL( self.libName )
+		self.libPtr = ctypes.CDLL( libName )
 		self.modelPtr = None
 
 		self.libPtr.serializeModel.restype = ctypes.py_object

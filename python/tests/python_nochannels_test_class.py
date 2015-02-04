@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from IIBoost import Booster
+from iiboost import Booster
 from sklearn.externals import joblib	# to load data
 
 # to show something
@@ -10,8 +10,8 @@ import matplotlib.pyplot as plt
 
 
 # load data
-gt = joblib.load("gt.jlb")
-img = joblib.load("img.jlb")
+gt = joblib.load("../../testData/gt.jlb")
+img = joblib.load("../../testData/img.jlb")
 
 
 model = Booster()

@@ -28,7 +28,6 @@
 #include <slic/include/compute_histogram.hxx>
 #undef fatalMsg
 
-#undef _OPENMP
 
 #ifdef _OPENMP
     #include <omp.h>

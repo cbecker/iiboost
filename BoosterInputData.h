@@ -22,37 +22,65 @@
 #include "ROIData.h"
 #include <Eigen/Dense>
 #include "globaldefs.h"
+#include <memory>
+
 
 // contains image data, integral images, etc
+//  To add ROIs, use add(), do not add them directly yourself to ROIs!
 struct MultipleROIData
 {
+	typedef std::shared_ptr<ROIData>	ROIDataPtr;
+
 	// list of ROIs
-	std::vector<ROIData *>	ROIs;
+	std::vector<ROIDataPtr>	ROIs;
 
+private:
 	// anisotropy in Z
-	float	zAnisotropyFactor;
-	float	invZAnisotropyFactor;	// automatically updated with init()
+	float	mZAnisotropyFactor;
+	float	mInvZAnisotropyFactor;	// automatically updated with init()
+	bool	mInitialized;
 
-
-	void init( float _zAnisotropyFact ) 
-	{
-		zAnisotropyFactor = _zAnisotropyFact;
-		invZAnisotropyFactor = 1.0 / zAnisotropyFactor;
-	}
+public:
+	inline float  zAnisotropyFactor() const { return mZAnisotropyFactor; }
+	inline float  invZAnisotropyFactor() const { return mInvZAnisotropyFactor; }
+	inline bool   initialized() const { return mInitialized; }
 
 	void clear()
 	{
 		ROIs.clear();
 	}
 
-	void add( ROIData *roi )
+	void add( ROIDataPtr roiPtr )
 	{
-		ROIs.push_back(roi);
+		// check if roiPtr was initialized first
+		if (!roiPtr->initialized())
+			qFatal("MultipleROIData: trying to add an uninitialized ROI");
+
+		// if we have already one, check that the anisotropy factors are the same
+		if ( this->initialized() && ( roiPtr->zAnisotropyFactor() != zAnisotropyFactor() ) )
+			qFatal("MultipleROIData: zAnisotropy factor does not match: %f / %f", roiPtr->zAnisotropyFactor(), zAnisotropyFactor());
+
+
+		// update anisotropy factor if first one begin added
+		if ( ! this->initialized() )
+		{
+			// then set anisotropy factor
+			mZAnisotropyFactor = roiPtr->zAnisotropyFactor();
+			mInvZAnisotropyFactor = 1.0 / mZAnisotropyFactor;
+
+			mInitialized = true;
+		}
+
+		ROIs.push_back(roiPtr);
 	}
 
 	inline unsigned numROIs() const { return ROIs.size(); }
 
-	MultipleROIData() { zAnisotropyFactor = invZAnisotropyFactor = 1.0; }
+	MultipleROIData() 
+	{ 
+		mZAnisotropyFactor = mInvZAnisotropyFactor = 0;
+		mInitialized = false;
+	}
 };
 
 
@@ -64,7 +92,10 @@ struct BoosterInputData
 	//  we use float bcos it avoids cast while training/predicting
 	typedef Eigen::Vector3f	LocType;
 
-	const MultipleROIData 	*imgData; // image data itself, containing many ROIs
+	typedef std::shared_ptr<MultipleROIData>	MultipleROIDataPtr;
+	typedef std::shared_ptr<const MultipleROIData>	MultipleROIDataConstPtr;
+
+	MultipleROIDataConstPtr 	imgData; // image data itself, containing many ROIs
 
 	// now data for each sample
 	std::vector<unsigned>		sampROI;		// which ROI it belongs to
@@ -72,6 +103,17 @@ struct BoosterInputData
 
 	std::vector<LocType> 		sampLocation;	// x,y,z location
 	std::vector<unsigned>		sampOffset;		// offset in terms of the 3D image
+
+private:
+	bool 	mInitialized;
+
+public:
+	inline bool initialized() const { return mInitialized; }
+
+	BoosterInputData()
+	{
+		mInitialized = false;
+	}
 
 	void clear()
 	{
@@ -84,7 +126,7 @@ struct BoosterInputData
 	void showInfo()
 	{
 		qDebug("--- BoosterInputData ---");
-		qDebug("zAnisotropyFactor: %.4f", imgData->zAnisotropyFactor);
+		qDebug("zAnisotropyFactor: %.4f", imgData->zAnisotropyFactor());
 		qDebug("\tNum ROIs: %lu", imgData->ROIs.size());
 
 		unsigned nPos = 0, nNeg = 0;
@@ -99,14 +141,25 @@ struct BoosterInputData
 		qDebug("--- End BoosterInputData ---");
 	}
 
-	void init( const MultipleROIData *rois, bool ignoreGT = false, bool debugInfo = false )
+	void init(  MultipleROIDataConstPtr rois,
+				bool ignoreGT = false, 
+				bool debugInfo = false,
+				const int minBorderDist = 10 )
 	{
+		// check if rois are correctly initialized
+		if ( !rois->initialized() )
+			qFatal("BoosterInputData: rois not initialized properly.");
+
 		clear();
+
 		imgData = rois;
+
+		// z border ignore distance
+		const int minBorderDistZ = std::min( (int)1, (int)ceil(minBorderDist/rois->zAnisotropyFactor()) );
 
 		for (unsigned curROIIdx=0; curROIIdx < imgData->numROIs(); curROIIdx++)
 		{
-			const ROIData *roi = imgData->ROIs[curROIIdx];
+			const MultipleROIData::ROIDataPtr &roi = imgData->ROIs[curROIIdx];
 
 			// find out if GT is there
 			const bool hasGT = (roi->gtImage.isEmpty() == false) && (!ignoreGT);
@@ -118,6 +171,10 @@ struct BoosterInputData
 				const Matrix3D<GTPixelType> &gt = roi->gtImage;
 				const unsigned numVoxels = gt.numElem();
 
+				const int maxX = gt.width() - minBorderDist;
+				const int maxY = gt.height() - minBorderDist;
+				const int maxZ = gt.depth() - minBorderDistZ;
+
 				// go through the image, find pos/neg samples
 				for (unsigned i=0; i < numVoxels; i++)
 				{
@@ -125,15 +182,25 @@ struct BoosterInputData
 
 					if ( (label == GTPosLabel) || (label == GTNegLabel) )
 					{
-						sampLabels.push_back(label);
-						sampOffset.push_back(i);
 
 						{
 							unsigned x,y,z;
 							gt.idxToCoord(i, x, y, z);	// convert to coords
 
+							if ( x < minBorderDist )	continue;
+							if ( x > maxX )	continue;
+							
+							if ( y < minBorderDist )	continue;
+							if ( y > maxY )	continue;
+
+							if ( z < minBorderDistZ )	continue;
+							if ( z > maxZ )	continue;
+
 							sampLocation.push_back( LocType(x,y,z) );
 						}
+
+						sampLabels.push_back(label);
+						sampOffset.push_back(i);
 
 						numFound++;
 					}
@@ -166,6 +233,8 @@ struct BoosterInputData
 			if (debugInfo)
 				qDebug("Added ROI %u: %u samples", curROIIdx, numFound);
 		}
+
+		mInitialized = true;
 	}
 };
 

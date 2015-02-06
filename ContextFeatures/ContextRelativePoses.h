@@ -94,7 +94,7 @@ public:
                                     BoxPosition *box ) const
     {
         const ROIData &roi = *BData.imgData->ROIs[ BData.sampROI[sampleIdx] ];
-        const float invZAnisotropyFactor = BData.imgData->invZAnisotropyFactor;
+        const float invZAnisotropyFactor = BData.imgData->invZAnisotropyFactor();
 
         const unsigned int Vwidth = roi.gtImage.width();
         const unsigned int Vheight = roi.gtImage.height();

@@ -28,7 +28,7 @@ typedef double AdaBoostErrorType;
 
 // Ground Truth
 typedef unsigned char	GTPixelType;
-static const GTPixelType GTNegLabel = 1;
+static const GTPixelType GTNegLabel = 0;
 static const GTPixelType GTPosLabel = 2;
 
 // supervoxel or voxel-based?

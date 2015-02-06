@@ -25,24 +25,25 @@
 #include "utils/DiscreteRandomSampler.h"
 #include <omp.h>
 
+#include "SmartPtrs.h"
+
 // we need the boosting model
 #include "BoosterModel.h"
 
 // an operator to speed up prediction
 template<typename PredType>
-struct BoosterPredictOperator
+struct BoosterPredictOperatorNoAtomic
 {
 	typedef typename PredType::Scalar ScalarType;
 	
 	PredType &mPred;
 	const ScalarType mAlpha;
 
-	inline BoosterPredictOperator( PredType &pred, ScalarType alpha ) :
+	inline BoosterPredictOperatorNoAtomic( PredType &pred, ScalarType alpha ) :
 		mPred(pred), mAlpha(alpha) {}
 
 	inline void operator ()( const unsigned i, const bool what )
 	{
-		#pragma omp atomic
 		mPred.coeffRef(i) += what ? mAlpha : -mAlpha;
 	}
 };
@@ -72,13 +73,22 @@ private:
 
 	DiscreteRandomSampler<WeightsArrayType> mSampler;
 
+
+	// early stopping constants, see Booster() for their values
+	unsigned mEarlyStopCheckEvery;
+	float    mEarlyStopNegLimit;
+
 public:
 	Booster()
 	{
-		mWeakLearnersPerIter = 500;
-		mNumToSubsamplePerClass = 500;
-		mLinesearchOnWholeData = true;
+		mWeakLearnersPerIter = 1000;
+		mNumToSubsamplePerClass = 1000;
+		mLinesearchOnWholeData = false;
 		mShowDebugInfo = false;
+
+		// early stopping
+		mEarlyStopNegLimit = -1.0;
+		mEarlyStopCheckEvery = 20;
 	}
 
 	void setShowDebugInfo(bool yes) { mShowDebugInfo = yes; }
@@ -239,6 +249,10 @@ public:
 
 	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = omp_get_max_threads() )
 	{
+		// sanity check, was bid correctly initialized?
+		if ( !bid.initialized() )
+			qFatal("Booster::train(): bid not properly initialized.");
+
 		// num samples
 		const unsigned N = bid.sampLabels.size();
 
@@ -334,17 +348,25 @@ public:
 	}
 
 	// predicts roiNo in rois
-	void predict( const MultipleROIData *rois, 
+	template<bool TUseEarlyStopping = false>
+	void predict( MultipleROIData &rois,
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
 				  unsigned numThreads = omp_get_max_threads() ) const
 	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
 		MultipleROIData singleRoiData;
-		singleRoiData.init( rois->zAnisotropyFactor );
-		singleRoiData.add( rois->ROIs[roiNo] );
+		singleRoiData.add( rois.ROIs[roiNo] );
 
 		BoosterInputData bd;
-		bd.init(&singleRoiData, true);
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
 
 		// make sure we are given right number of channels
 		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
@@ -359,13 +381,222 @@ public:
 		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
 		MapType predMap( pred->data(), pred->numElem() );
 
-		#pragma omp parallel for
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
 		for (unsigned i=0; i < N; i++)
 		{
-			BoosterPredictOperator<MapType> op(predMap, mModel[i].alpha);
-			mModel[i].wl.classifySingleROIWithOp( mPoses, bd, op, numThreads );
+			typedef BoosterPredictOperatorNoAtomic<MapType>  OpType;
+
+			OpType op(predMap, mModel[i].alpha);
+
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
 		}
 	}
+
+	// it predicts feature 0, then feature 1, etc.
+	// thus it behaves differently for early stopping (better it seems, actually)
+	template<bool TUseEarlyStopping = false>
+	void predictWithFeatureOrdering( MultipleROIData &rois,
+				  Matrix3D<float> *pred,
+				  unsigned roiNo = 0,
+				  unsigned numThreads = omp_get_max_threads() ) const
+	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
+		MultipleROIData singleRoiData;
+		singleRoiData.add( rois.ROIs[roiNo] );
+
+		BoosterInputData bd;
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
+
+		// make sure we are given right number of channels
+		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+			throw std::runtime_error("Number of channels for prediction not the same as for training.");
+
+		const unsigned N = mModel.size();
+		Eigen::ArrayXf weakPred;
+		
+		pred->reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+		pred->fill(0);
+
+		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
+		MapType predMap( pred->data(), pred->numElem() );
+
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
+
+		// separate according to feature ID
+        typedef std::multimap<unsigned, unsigned> MultiMapType;
+
+        MultiMapType map;
+
+        for (unsigned i=0; i < mModel.size(); i++)
+            map.insert( std::pair<unsigned, unsigned>( mModel[i].wl.channel(), i ) );
+
+        unsigned evalIter = 0;  // counts number of iterations in the next loop
+
+        // go through each key / feature
+        const unsigned maxKey = std::numeric_limits<unsigned>::max();
+        unsigned prevKey = maxKey;
+        for( MultiMapType::iterator it = map.begin(), end = map.end();
+               it != end;
+               it++ )
+        {
+        	const unsigned curKey = it->first;
+            const unsigned curStump = it->second;
+
+            prevKey = curKey;
+
+            // now the real processing takes place
+            typedef BoosterPredictOperatorNoAtomic<MapType>  OpType;
+			OpType op(predMap, mModel[curStump].alpha);
+
+			mModel[curStump].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+
+            // early stopping
+            if ( TUseEarlyStopping )
+				if ( evalIter % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
+
+			evalIter++;
+        }
+	}
+
+
+	// probes the two possible polarities, return whoever is max
+	// works with early stopping if desired
+	template<bool TUseEarlyStopping = false>
+	void predictDoublePolarity( MultipleROIData &rois,   //rois is not const bcos we need to invert matrices
+				  Matrix3D<float> *pred,
+				  unsigned roiNo = 0,
+				  unsigned numThreads = omp_get_max_threads() ) const
+	{
+		// for later use
+		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
+		const float    earlyStopNegLimit = mEarlyStopNegLimit;
+
+		// vector containing whether it should continue evaluation or not
+		// initialized later
+		std::vector<bool>	earlyStopVector;
+
+		MultipleROIData singleRoiData;
+		singleRoiData.add( rois.ROIs[roiNo] );
+
+		printf("Z anis: %f\n", rois.zAnisotropyFactor());
+
+		BoosterInputData bd;
+		bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
+
+		// make sure we are given right number of channels
+		if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+			throw std::runtime_error("Number of channels for prediction not the same as for training.");
+
+		const unsigned N = mModel.size();
+		Eigen::ArrayXf weakPred;
+		
+		pred->reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+		pred->fill(0);
+
+		Matrix3D<float> predInv;
+		predInv.reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+
+		typedef Eigen::Map< Eigen::ArrayXf, Eigen::Unaligned > 	MapType;
+		MapType predMap( pred->data(), pred->numElem() );
+		MapType predInvMap( predInv.data(), predInv.numElem() );
+
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
+		// predict for current orientation
+		for (unsigned i=0; i < N; i++)
+		{
+			typedef BoosterPredictOperatorNoAtomic<MapType>	OpType;
+
+			OpType op(predMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, op, numThreads, &earlyStopVector );
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
+		}
+
+
+		// --------- Now other orientation --------
+
+		// invert orientation estimate
+		singleRoiData.ROIs[0]->invertOrientation();
+
+		if ( TUseEarlyStopping )
+			earlyStopVector.resize( predMap.size(), true );
+
+		// predict for inverted orientation
+		for (unsigned i=0; i < N; i++)
+		{
+			typedef BoosterPredictOperatorNoAtomic<MapType>	OpType;
+
+			OpType opInv(predInvMap, mModel[i].alpha);
+			mModel[i].wl.classifySingleROIWithOp<OpType, TUseEarlyStopping>( mPoses, bd, opInv, numThreads, &earlyStopVector );
+
+			if ( TUseEarlyStopping )
+				if ( i % earlyStopCheckEvery == 0 )
+				{
+					for (unsigned q=0; q < predMap.size(); q++)
+	                {
+	                    if (earlyStopVector[q] == false)   continue;
+
+	                    if ( predMap.coeff(q) < earlyStopNegLimit )
+	                        earlyStopVector[q] = false;
+	                }
+				}
+		}
+
+		// undo orientation inversion
+		singleRoiData.ROIs[0]->invertOrientation();
+
+
+		// --------- check max, return max
+		for (unsigned i=0; i < N; i++)
+			predMap.coeffRef(i) = std::max( predInvMap.coeff(i), predMap.coeff(i) );
+	}
+
 };
 
 #endif

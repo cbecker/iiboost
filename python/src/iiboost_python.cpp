@@ -16,6 +16,7 @@
 #include "utils/TimerRT.h"
 
 #include <Python.h>
+#include "SmartPtrs.h"
 
 typedef float PredictionPixelType;
 
@@ -80,14 +81,14 @@ extern "C"
         }
 
         MultipleROIData allROIs;
-        allROIs.add( &roi );
+        allROIs.add( shared_ptr_nodelete(ROIData, &roi) );
 
         try
         {
             Booster adaboost;
             adaboost.setModel( *((BoosterModel *) modelPtr) );
 
-            adaboost.predict( &allROIs, &predMatrix );
+            adaboost.predict( allROIs, &predMatrix );
         }
         catch( std::exception &e )
         {
@@ -129,11 +130,11 @@ extern "C"
                    rois[i].addII( ii[i][ch].internalImage().data() );
                 }
 
-                allROIs.add( &rois[i] );
+                allROIs.add( shared_ptr_nodelete(ROIData, &rois[i]) );
             }
 
             BoosterInputData bdata;
-            bdata.init( &allROIs );
+            bdata.init( shared_ptr_nodelete(MultipleROIData, &allROIs) );
             bdata.showInfo();
 
             Booster adaboost;
@@ -201,11 +202,11 @@ extern "C"
                 ii[i].compute( rois[i].rawImage );
                 rois[i].addII( ii[i].internalImage().data() );
 
-                allROIs.add( &rois[i] );
+                allROIs.add( shared_ptr_nodelete(ROIData, &rois[i]) );
             }
 
             BoosterInputData bdata;
-            bdata.init( &allROIs );
+            bdata.init( shared_ptr_nodelete(MultipleROIData, &allROIs) );
             bdata.showInfo();
 
             Booster adaboost;
@@ -251,11 +252,11 @@ extern "C"
                 ii.fromSharedData(chImgPtr[i], width[i], height[i], depth[i]);
                 rois[i].addII( ii.internalImage().data() );
 
-                allROIs.add( &rois[i] );
+                allROIs.add( shared_ptr_nodelete(ROIData, &rois[i]) );
             }
 
             BoosterInputData bdata;
-            bdata.init( &allROIs );
+            bdata.init( shared_ptr_nodelete(MultipleROIData, &allROIs) );
             bdata.showInfo();
 
             Booster adaboost;
@@ -296,12 +297,12 @@ extern "C"
 
 
         MultipleROIData allROIs;
-        allROIs.add( &roi );
+        allROIs.add( shared_ptr_nodelete(ROIData, &roi) );
 
         Booster adaboost;
         adaboost.setModel( *((BoosterModel *) modelPtr) );
 
-        adaboost.predict( &allROIs, &predMatrix );
+        adaboost.predict( allROIs, &predMatrix );
     }
 
 
@@ -326,11 +327,11 @@ extern "C"
         roi.addII( ii.internalImage().data() );
 
         MultipleROIData allROIs;
-        allROIs.add( &roi );
+        allROIs.add( shared_ptr_nodelete(ROIData, &roi) );
 
         Booster adaboost;
         adaboost.setModel( *((BoosterModel *) modelPtr) );
 
-        adaboost.predict( &allROIs, &predMatrix );
+        adaboost.predict( allROIs, &predMatrix );
     }
 }

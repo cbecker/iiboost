@@ -31,10 +31,10 @@ int main()
 {
 	Matrix3D<ImagePixelType> img, gt;
 
-	if (!img.load("/home/pol/code/data/Madrid_Train.tif"))
+	if (!img.load("../testData/single_synapse.tif"))
 		qFatal("Error loading image");
 
-	if (!gt.load("/home/pol/code/data/Madrid_Train_espinagt.tif"))
+	if (!gt.load("../testData/single_synapse_testgt.tif"))
 		qFatal("Error loading image");
 
 
@@ -47,10 +47,10 @@ int main()
 	roi.addII( ii.internalImage().data() );
 
 	MultipleROIData allROIs;
-	allROIs.add( &roi );
+	allROIs.add( shared_ptr_nodelete(ROIData, &roi) );
 
 	BoosterInputData bdata;
-	bdata.init( &allROIs );
+	bdata.init( shared_ptr_nodelete(MultipleROIData, &allROIs) );
 	bdata.showInfo();
 
 	Booster adaboost;
@@ -59,10 +59,36 @@ int main()
 
 	// predict
 	Matrix3D<float> predImg;
-	TimerRT timer; timer.reset();
-	adaboost.predict( &allROIs, &predImg );
+	
+	TimerRT timer; 
+
+	// ---- No early stopping
+	timer.reset();
+	adaboost.predict( allROIs, &predImg );
 	qDebug("Elapsed: %f", timer.elapsed());
 	predImg.save("/tmp/test.nrrd");
+
+
+	// ---- With early stopping
+	timer.reset();
+	adaboost.predict<true>( allROIs, &predImg );
+	qDebug("Elapsed early stop: %f", timer.elapsed());
+	predImg.save("/tmp/test-earlystop.nrrd");
+
+
+	// --- now same tests, but with predict with double polarity
+	// ---- No early stopping
+	timer.reset();
+	adaboost.predictDoublePolarity( allROIs, &predImg );
+	qDebug("Elapsed: %f", timer.elapsed());
+	predImg.save("/tmp/test-2pol.nrrd");
+
+
+	// ---- With early stopping
+	timer.reset();
+	adaboost.predictDoublePolarity<true>( allROIs, &predImg );
+	qDebug("Elapsed early stop: %f", timer.elapsed());
+	predImg.save("/tmp/test-2pol-earlystop.nrrd");
 
 	// save JSON model
 	if (!adaboost.saveModelToFile( "/tmp/model.json" ))

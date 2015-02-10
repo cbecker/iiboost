@@ -108,7 +108,9 @@ extern "C"
                              int numStacks,
                              IntegralImagePixelType **chImgPtr,
                              int numChannels, double zAnisotropyFactor,
-                             int numStumps, int debugOutput )
+                             int numStumps,
+                             int gtNegativeLabel, int gtPositiveLabel,
+                             int debugOutput )
     {
 
         BoosterModel *modelPtr = 0;
@@ -121,6 +123,8 @@ extern "C"
 
             for (int i=0; i < numStacks; i++)
             {
+                rois[i].setGTNegativeSampleLabel(gtNegativeLabel);
+                rois[i].setGTPositiveSampleLabel(gtPositiveLabel);
                 rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i], zAnisotropyFactor);
 
                 for (int ch=0; ch < numChannels; ch++)

@@ -87,7 +87,7 @@ class Booster:
 		self.modelPtr = newModelPtr
 
 
-	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, debugOutput = False ):
+	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, gtNegativeLabel, gtPositiveLabel, debugOutput = False ):
 			""" Train a boosted classifier """
 			"""   imgStackList: list of images, of type uint8 """
 			"""   gtStackList:  list of GT, of type uint8. Negative = 1, Positive = 2, Ignore = else      """
@@ -147,7 +147,7 @@ class Booster:
 											ctypes.c_int( len(imgs) ),
 											chans,
 											ctypes.c_int( numChannels ), ctypes.c_double(zAnisotropyFactor),
-											ctypes.c_int(numStumps), dbgOut ) )
+											ctypes.c_int(numStumps), ctypes.c_int( gtNegativeLabel ), ctypes.c_int( gtPositiveLabel ), dbgOut ) )
 
 			if newModelPtr.value == None:
 				raise RuntimeError("Error training model.")

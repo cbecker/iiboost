@@ -87,7 +87,7 @@ class Booster:
 		self.modelPtr = newModelPtr
 
 
-	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, numStumps, debugOutput = False ):
+	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, debugOutput = False ):
 			""" Train a boosted classifier """
 			"""   imgStackList: list of images, of type uint8 """
 			"""   gtStackList:  list of GT, of type uint8. Negative = 1, Positive = 2, Ignore = else      """
@@ -146,7 +146,7 @@ class Booster:
 											width, height, depth,
 											ctypes.c_int( len(imgs) ),
 											chans,
-											ctypes.c_int( numChannels ),
+											ctypes.c_int( numChannels ), ctypes.c_double(zAnisotropyFactor),
 											ctypes.c_int(numStumps), dbgOut ) )
 
 			if newModelPtr.value == None:
@@ -156,7 +156,7 @@ class Booster:
 			self.modelPtr = newModelPtr
 
 
-	def predictWithChannels( self, imgStack, chStackList ):
+	def predictWithChannels( self, imgStack, chStackList, zAnisotropyFactor):
 		""" Per-pixel prediction for single ROI/image 	"""
 		"""   imgStack: 	image itself 					 """
 		"""   chStackList:  list of integral images/channels """
@@ -195,7 +195,7 @@ class Booster:
 				ctypes.c_void_p(imgStack.ctypes.data),
 				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
 				chans,
-				ctypes.c_int( len(chans) ),
+				ctypes.c_int( len(chans) ), ctypes.c_double(zAnisotropyFactor),
 				ctypes.c_void_p(pred.ctypes.data) )
 
 		ret = ctypes.c_int(ret)

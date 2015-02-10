@@ -41,6 +41,10 @@ int main()
 	ROIData roi;
     roi.init( img.data(), gt.data(), 0, 0, img.width(), img.height(), img.depth(), 1.0 );
 
+    // --> VERY IMPORTANT, set ground truth labels
+    roi.setGTNegativeSampleLabel( 1 );
+    roi.setGTPositiveSampleLabel( 2 );
+
 	// raw image integral image
 	ROIData::IntegralImageType ii;
 	ii.compute( img );

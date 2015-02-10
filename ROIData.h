@@ -40,6 +40,12 @@
  *      - Ground truth image
  *      - Integral images / channels
  *      - Mean-variance normalization (if USE_MEANVAR_NORMALIZATION != 0)
+ *
+ *
+ * -- IMPORTANT --: you need to specify how labels are encoded in the ground truth
+ *                  for it to function properly. The defaults may not match the
+ *                  ground truth. 
+ *                  Use setGTNegativeSampleLabel() and setGTPositiveSampleLabel()
  */
 struct ROIData
 {
@@ -50,6 +56,10 @@ private:
 
     float       mZAnisotropyFactor;
     bool        mInitialized;           // if it has been initialized with init() or not
+
+
+    // positive and negative sample values in ground truth
+    GTPixelType mGTNegativeSampleLabel, mGTPositiveSampleLabel;
 
 public:
 
@@ -106,6 +116,12 @@ public:
 //////////////////////////////////////////////////////////////////////////////////////
     inline bool initialized() const { return mInitialized; }
     inline float zAnisotropyFactor() const { return mZAnisotropyFactor; }
+
+    inline GTPixelType gtNegativeSampleLabel() const { return mGTNegativeSampleLabel; }
+    inline GTPixelType gtPositiveSampleLabel() const { return mGTPositiveSampleLabel; }
+
+    void setGTNegativeSampleLabel( GTPixelType lbl ) { mGTNegativeSampleLabel = lbl; }
+    void setGTPositiveSampleLabel( GTPixelType lbl ) { mGTPositiveSampleLabel = lbl; }
 
     // computes rotation matrices from raw image
     void updateRotationMatrices( const float rotHessianSigma )
@@ -360,6 +376,10 @@ public:
     {
         mZAnisotropyFactor = 0; // indicates invalid anisotropy factor
         mInitialized = false;
+
+        // defaults for labels
+        mGTNegativeSampleLabel = 0;
+        mGTPositiveSampleLabel = 1;
     }
 
     // inverts orientation of voxel with ID idx

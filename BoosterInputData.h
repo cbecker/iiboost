@@ -175,12 +175,16 @@ public:
 				const int maxY = gt.height() - minBorderDist;
 				const int maxZ = gt.depth() - minBorderDistZ;
 
+				// cache labels
+				const GTPixelType posLabel = roi->gtPositiveSampleLabel();
+				const GTPixelType negLabel = roi->gtNegativeSampleLabel();
+
 				// go through the image, find pos/neg samples
 				for (unsigned i=0; i < numVoxels; i++)
 				{
 					const GTPixelType label = gt.data()[i];
 
-					if ( (label == GTPosLabel) || (label == GTNegLabel) )
+					if ( (label == posLabel) || (label == negLabel) )
 					{
 
 						{
@@ -199,7 +203,9 @@ public:
 							sampLocation.push_back( LocType(x,y,z) );
 						}
 
-						sampLabels.push_back(label);
+						// translate labels into GTPosLabel and GTNegLabel
+						sampLabels.push_back( (label == posLabel) ? GTPosLabel : GTNegLabel );
+						
 						sampOffset.push_back(i);
 
 						numFound++;

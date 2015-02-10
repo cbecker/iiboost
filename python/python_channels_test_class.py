@@ -35,7 +35,7 @@ zAnisotropyFactor = 5.0;
 # Train: note that we pass a list of stacks
 model.trainWithChannels( [img1,img2,img3], [gt1,gt2,gt3], [channels1,channels2,channels3], zAnisotropyFactor, numStumps=100, gtNegativeLabel=1, gtPositiveLabel=2, debugOutput=True)
 
-pred = model.predictWithChannels( img, channels1, zAnisotropyFactor )
+pred = model.predictWithChannels( img, channels1, zAnisotropyFactor, useEarlyStopping=True)
 
 # show image & prediction side by side
 plt.ion()

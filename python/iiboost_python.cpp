@@ -62,6 +62,7 @@ extern "C"
                               int width, int height, int depth,
                               IntegralImagePixelType **chImgPtr,
                               int numChannels, double zAnisotropyFactor,
+                              int useEarlyStopping,
                               PredictionPixelType *predPtr )
     {
         Matrix3D<PredictionPixelType> predMatrix;
@@ -87,8 +88,10 @@ extern "C"
         {
             Booster adaboost;
             adaboost.setModel( *((BoosterModel *) modelPtr) );
-
-            adaboost.predict( allROIs, &predMatrix );
+            if(useEarlyStopping != 0)
+                adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix );
+            else
+                adaboost.predictWithFeatureOrdering<false>( allROIs, &predMatrix );
         }
         catch( std::exception &e )
         {

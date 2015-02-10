@@ -87,7 +87,7 @@ class Booster:
 		self.modelPtr = newModelPtr
 
 
-	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, debugOutput = False ):
+	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, gtNegativeLabel, gtPositiveLabel, debugOutput = False ):
 			""" Train a boosted classifier """
 			"""   imgStackList: list of images, of type uint8 """
 			"""   gtStackList:  list of GT, of type uint8. Negative = 1, Positive = 2, Ignore = else      """
@@ -147,7 +147,7 @@ class Booster:
 											ctypes.c_int( len(imgs) ),
 											chans,
 											ctypes.c_int( numChannels ), ctypes.c_double(zAnisotropyFactor),
-											ctypes.c_int(numStumps), dbgOut ) )
+											ctypes.c_int(numStumps), ctypes.c_int( gtNegativeLabel ), ctypes.c_int( gtPositiveLabel ), dbgOut ) )
 
 			if newModelPtr.value == None:
 				raise RuntimeError("Error training model.")
@@ -156,7 +156,7 @@ class Booster:
 			self.modelPtr = newModelPtr
 
 
-	def predictWithChannels( self, imgStack, chStackList, zAnisotropyFactor):
+	def predictWithChannels( self, imgStack, chStackList, zAnisotropyFactor, useEarlyStopping = True):
 		""" Per-pixel prediction for single ROI/image 	"""
 		"""   imgStack: 	image itself 					 """
 		"""   chStackList:  list of integral images/channels """
@@ -190,12 +190,18 @@ class Booster:
 		# pre-alloc prediction
 		pred = np.empty_like( imgStack, dtype=np.dtype("float32") )
 
+		if useEarlyStopping:
+				useEarlyStoppa = ctypes.c_int(1)
+		else:
+				useEarlyStoppa = ctypes.c_int(0)
+
 		# Run prediction
 		ret = self.libPtr.predictWithChannels( self.modelPtr,
 				ctypes.c_void_p(imgStack.ctypes.data),
 				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
 				chans,
 				ctypes.c_int( len(chans) ), ctypes.c_double(zAnisotropyFactor),
+				useEarlyStoppa,
 				ctypes.c_void_p(pred.ctypes.data) )
 
 		ret = ctypes.c_int(ret)

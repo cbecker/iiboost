@@ -21,6 +21,17 @@ import ctypes
 
 from exceptions import RuntimeError
 
+# converts directly to c array (eg. list of void pointers)
+#  and puts it in an array of element type cArrayElType
+def directToCArray( L, prop, cArrayElType ):
+	N = len(L)
+	arr = (cArrayElType * N)()
+
+	for idx,e in enumerate(L):
+		arr[idx] = eval( "e." + prop )
+
+	return arr
+
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
 def propToCArray( L, prop, cArrayElType ):
@@ -44,6 +55,55 @@ def propListToCArray( L, prop, cArrayElType ):
 
 	return arr
 
+
+## --- For orientation, computes 9 float values per pixel ---
+class EigenVectorsOfHessianImage:
+    """ Computes an orientation matrix (3x3) per pixel """
+
+    libName = "libiiboost_python.so"
+
+    # will hold C pointer to image
+    imgPtr = None
+
+    # holds ptr to library (ctypes)
+    libPtr = None
+
+    def __init__(self):
+        self.libPtr = ctypes.CDLL( self.libName )
+        self.imgPtr = None
+
+        self.libPtr.computeEigenVectorsOfHessianImage.restype = ctypes.c_void_p
+
+
+    # sigma is the smoothing factor, in pixels
+    def compute( self, imgStack, zAnisotropyFactor, sigma=3.5 ):
+        if imgStack.dtype != np.dtype("uint8"):
+            raise RuntimeError("image must be of uint8 type")
+
+        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        width = imgStack.shape[2]
+        height = imgStack.shape[1]
+        depth = imgStack.shape[0]
+
+        self.imgPtr = ctypes.c_void_p(self.libPtr.computeEigenVectorsOfHessianImage( ctypes.c_void_p(imgStack.ctypes.data),
+                                                ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+                                                ctypes.c_double(zAnisotropyFactor),
+                                                ctypes.c_double(sigma) ))
+
+    def free( self ):
+        if self.imgPtr != None:
+            self.libPtr.freeEigenVectorsOfHessianImage( self.imgPtr )
+            self.imgPtr = None
+
+    # we need a proper destructor to delete the C pointer
+    # (because we love hacking code and dirty pointers)
+    def __del__(self):
+        self.free()
+
+
+
+
+## --- Booster Class ---
 class Booster:
 	""" Booster class based on context cue boosting """
 
@@ -87,24 +147,30 @@ class Booster:
 		self.modelPtr = newModelPtr
 
 
-	def trainWithChannels( self, imgStackList, gtStackList, chStackListList, zAnisotropyFactor, numStumps, gtNegativeLabel, gtPositiveLabel, debugOutput = False ):
+	def trainWithChannels( self, imgStackList, eigVecOfHessianImgList,
+                           gtStackList, chStackListList, 
+                           zAnisotropyFactor, numStumps, gtNegativeLabel, gtPositiveLabel, debugOutput = False ):
 			""" Train a boosted classifier """
 			"""   imgStackList: list of images, of type uint8 """
+			"""   eigVecOfHessianImgList: list of hessian eigenvector list (orientation)                  """
 			"""   gtStackList:  list of GT, of type uint8. Negative = 1, Positive = 2, Ignore = else      """
 			"""	  chStackListList: list of the channels/integral images for each image in imgStackList.   """
 			"""    				   The number of channels per image must be the same for all images. 	  """
 			"""    				   Use computeIntegralImage() to calculate integral images from channels. """
-			"""																							  """
+			"""   zAnisotropyFactor: ratio between z voxel size and x/y voxel size """
 			"""   numStumps:    integer, number of stumps to train 										  """
+			"""   gtPositive/NegativeLabel:    value of positive and negative training data in ground truth """
 			""" WARNING: it assumes stacks are in C ordering """
 
-			if (type(imgStackList) != list) or (type(gtStackList) != list) or (type(chStackListList) != list):
+			if (type(imgStackList) != list) or (type(gtStackList) != list) or \
+                (type(chStackListList) != list) or \
+                (type(eigVecOfHessianImgList) != list):
 				raise RuntimeError("image, gt and channels stack list must of be of type LIST")
 
 			# check shape/type of img and gt
-			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList):
-				raise RuntimeError("image, gt stack and channels list must of be of same size,",
-														len(imgStackList)," ",len(gtStackList)," ",len(chStackList))
+			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList) != len(eigVecOfHessianImgList):
+				raise RuntimeError("image, eig vec, gt stack and channels list must of be of same size,",
+														len(imgStackList)," ",len(gtStackList)," ",len(chStackList), " ",len(eigVecOfHessianImgList))
 
 			for chStackList in chStackListList :
 				if (type(chStackList) != list):
@@ -113,12 +179,17 @@ class Booster:
 				if len(chStackList) != len(chStackListList[0]):
 					raise RuntimeError("Number of channels for each image must be the same")
 
-			for img,gt,ch in zip(imgStackList, gtStackList, chStackList):
+			for img,gt,ch,eigvec in zip(imgStackList, gtStackList, chStackList, eigVecOfHessianImgList):
 				if img.shape != gt.shape or gt.shape != ch.shape:
 					raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
 
-				if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")) or (ch.dtype != np.dtype("float32")):
+				if (img.dtype != np.dtype("uint8")) or \
+                    (gt.dtype != np.dtype("uint8")) or \
+                    (ch.dtype != np.dtype("float32")):
 					raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")
+
+				if not isinstance(eigvec, EigenVectorsOfHessianImage):
+					raise RuntimeError("eigVecImg must be of type EigenVectorsOfHessianImage")
 
 			# 'mangle' dimensions to deal with storage order (assuming C-style)
 			width  = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
@@ -128,6 +199,7 @@ class Booster:
 			# C array of pointers
 			imgs  = propToCArray( imgStackList, "ctypes.data", ctypes.c_void_p )
 			gts   = propToCArray(  gtStackList, "ctypes.data", ctypes.c_void_p )
+			evecs = directToCArray(  eigVecOfHessianImgList, "imgPtr", ctypes.c_void_p )
 
 			chans = propListToCArray( chStackListList, "ctypes.data", ctypes.c_void_p )
 
@@ -142,7 +214,7 @@ class Booster:
 
 			newModelPtr = ctypes.c_void_p(
 								self.libPtr.trainWithChannels(
-											imgs, gts,
+											imgs, evecs, gts,
 											width, height, depth,
 											ctypes.c_int( len(imgs) ),
 											chans,
@@ -156,10 +228,13 @@ class Booster:
 			self.modelPtr = newModelPtr
 
 
-	def predictWithChannels( self, imgStack, chStackList, zAnisotropyFactor, useEarlyStopping = True):
+	def predictWithChannels( self, imgStack, eigVecImg, chStackList, zAnisotropyFactor, useEarlyStopping = True):
 		""" Per-pixel prediction for single ROI/image 	"""
-		"""   imgStack: 	image itself 					 """
-		"""   chStackList:  list of integral images/channels """
+		"""   imgStack: 		 image itself 					 """
+		"""   eigVecImg:		 an EigenVectorsOfHessianImage instance """
+		"""   chStackList:  	 list of integral images/channels """
+		"""   zAnisotropyFactor: ratio between z voxel size and x/y voxel size """
+		"""   useEarlyStopping:  speeds up prediction considerably by approximating the prediction score """
 
 		if self.modelPtr == None:
 			raise RuntimeError("Tried to predict(), but no model available.")
@@ -167,6 +242,9 @@ class Booster:
 		""" returns confidence stack of pixel type float """
 		if imgStack.dtype != np.dtype("uint8"):
 			raise RuntimeError("image must be of uint8 type")
+
+		if not isinstance(eigVecImg, EigenVectorsOfHessianImage):
+			raise RuntimeError("eigVecImg must be of type EigenVectorsOfHessianImage")
 
 		if (type(chStackList) != list) :
 			raise RuntimeError("Channels stack list must of be of type LIST")
@@ -198,6 +276,7 @@ class Booster:
 		# Run prediction
 		ret = self.libPtr.predictWithChannels( self.modelPtr,
 				ctypes.c_void_p(imgStack.ctypes.data),
+				eigVecImg.imgPtr,
 				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
 				chans,
 				ctypes.c_int( len(chans) ), ctypes.c_double(zAnisotropyFactor),

@@ -170,7 +170,7 @@ class Booster:
 				raise RuntimeError("image, gt and channels stack list must of be of type LIST")
 
 			# check shape/type of img and gt
-			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList) != len(eigVecOfHessianImgList):
+			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList) or len(gtStackList) != len(eigVecOfHessianImgList):
 				raise RuntimeError("image, eig vec, gt stack and channels list must of be of same size,",
 														len(imgStackList)," ",len(gtStackList)," ",len(chStackListList), " ",len(eigVecOfHessianImgList))
 

@@ -571,7 +571,9 @@ public:
     template<typename SampleIdxVector, typename MatrixType>
     void exportFeat( const SampleIdxVector &sampleIdxs, const HistogramMeanThresholdData &params, MatrixType &destMat, unsigned int col )
     {
-		#pragma omp parallel for
+        #ifdef _OPENMP
+            #pragma omp parallel for
+        #endif
         for (unsigned int i=0; i < sampleIdxs.size(); i++)
         {
             BoxPositionType   box;
@@ -605,7 +607,9 @@ public:
     {
         if (mInvert == false)
         {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < sampleIdxs.size(); i++)
             {
                 BoxPositionType box;
@@ -621,7 +625,9 @@ public:
                     prediction[i] = negativeValue;
             }
         } else {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < sampleIdxs.size(); i++)
             {
                 BoxPositionType box;
@@ -1020,7 +1026,9 @@ public:
         }
 
         // for each possible pose
-        #pragma omp parallel for schedule(dynamic)
+        #ifdef _OPENMP
+            #pragma omp parallel for schedule(dynamic)
+        #endif
         for (unsigned iPoseIdx = 0; iPoseIdx < numPosesToExplore; iPoseIdx++ )
         //for (unsigned iPoseIdx = 0; iPoseIdx < mParams.possibleOffsets.cols(); iPoseIdx++ )
         {
@@ -1075,7 +1083,9 @@ public:
 					#endif
 					//AdaBoostErrorType err = findBestThreshold( sampleIdxs, sampleClass, mParams.svHist, bin, weights, thr, inv );
 
-                                        #pragma omp critical
+                                        #ifdef _OPENMP
+                                            #pragma omp critical
+                                        #endif
                                         {
                                             numExploredWeakLearners++;
                                             if ( err < minErr )

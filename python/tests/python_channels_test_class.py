@@ -71,7 +71,9 @@ plt.title("Click on the image to exit")
 
 plt.ginput(1)
 
+print "Serializing..."
 ss = model.serialize()
+print "Deserializing..."
 model.deserialize( ss )
-
+print "DONE."
 #print "Serialization string: " + model.serialize()

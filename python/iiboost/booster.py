@@ -16,10 +16,14 @@
 ## along with this program. If not, see <http://www.gnu.org/licenses/>.         ##
 ##////////////////////////////////////////////////////////////////////////////////
 
+import os
 import numpy as np
 import ctypes
 
 from exceptions import RuntimeError
+
+# libiiboost_python.so must reside in the same directory as this module.
+libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
 
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
@@ -47,8 +51,6 @@ def propListToCArray( L, prop, cArrayElType ):
 class Booster:
 	""" Booster class based on context cue boosting """
 
-	libName = "libiiboost_python.so"
-
 	# will hold C pointer to model
 	modelPtr = None
 
@@ -56,7 +58,7 @@ class Booster:
 	libPtr = None
 
 	def __init__(self):
-		self.libPtr = ctypes.CDLL( self.libName )
+		self.libPtr = ctypes.CDLL( libName )
 		self.modelPtr = None
 
 		self.libPtr.serializeModel.restype = ctypes.py_object
@@ -104,7 +106,7 @@ class Booster:
 			# check shape/type of img and gt
 			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList):
 				raise RuntimeError("image, gt stack and channels list must of be of same size,",
-														len(imgStackList)," ",len(gtStackList)," ",len(chStackList))
+														len(imgStackList)," ",len(gtStackList)," ",len(chStackListList))
 
 			for chStackList in chStackListList :
 				if (type(chStackList) != list):
@@ -113,9 +115,10 @@ class Booster:
 				if len(chStackList) != len(chStackListList[0]):
 					raise RuntimeError("Number of channels for each image must be the same")
 
-			for img,gt,ch in zip(imgStackList, gtStackList, chStackList):
-				if img.shape != gt.shape or gt.shape != ch.shape:
-					raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
+			for img,gt,chStackList in zip(imgStackList, gtStackList, chStackListList):
+				for ch in chStackList:
+					if img.shape != gt.shape or gt.shape != ch.shape:
+						raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
 
 				if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")) or (ch.dtype != np.dtype("float32")):
 					raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")

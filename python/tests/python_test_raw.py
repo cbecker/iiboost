@@ -21,12 +21,12 @@ def propToCArray( L, prop, cArrayElType ):
 
 # load data
 print "--- Loading data ---"
-gts = [joblib.load("gt.jlb")]
-imgs = [joblib.load("img.jlb")]
+gts = [joblib.load("../../testData/gt.jlb")]
+imgs = [joblib.load("../../testData/img.jlb")]
 
 
 print "--- Loading lib ---"
-boostLib = ctypes.CDLL("libiiboost_python.so")
+boostLib = ctypes.CDLL("../../build/python/libiiboost_python.so")
 
 # this returns a python string
 boostLib.serializeModel.restype = ctypes.py_object

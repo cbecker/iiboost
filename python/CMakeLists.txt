@@ -16,6 +16,7 @@ install(TARGETS iiboost_python
 
 if (APPLE)
     target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 )
+    set_target_properties( iiboost_python PROPERTIES SUFFIX  ".so")
 else()
     target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 rt)
 endif()

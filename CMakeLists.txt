@@ -37,18 +37,24 @@ set_property(TARGET randomlib PROPERTY IMPORTED_LOCATION ${RANDOMLIB_LIB})
 
 include_directories(${RANDOMLIB_INCPATH})
 
+set(IIBOOST_USE_OPENMP TRUE CACHE BOOL "Enable and compile IIBoost with OpenMP")
+set(OPENMP_FLAG "")
+if(IIBOOST_USE_OPENMP)
+    # Merely adding this flag causes gcc to define the _OPENMP preprocessor definition.
+    set(OPENMP_FLAG "-fopenmp")
+endif()
 
 # Flags
 # static release is pretty generic, possibly not the fastest one though
-set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-std=c++11 -fopenmp -O3")
+set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-std=c++11 -O3 ${OPENMP_FLAG}")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE_ALLSTATIC "-static-libgcc -static-libstdc++ -static")
 
 
 # C++11 with ITK
 add_definitions(-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0 -DVCL_CAN_STATIC_CONST_INIT_INT=0)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fopenmp -O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-std=c++11 -fopenmp -msse2 -msse3 -mssse3 -g")
+set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -O3 ${OPENMP_FLAG}")
+set(CMAKE_CXX_FLAGS_DEBUG "-std=c++11 -msse2 -msse3 -mssse3 -g ${OPENMP_FLAG}")
 
 
 if (NOT CMAKE_BUILD_TYPE)

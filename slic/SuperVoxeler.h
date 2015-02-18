@@ -147,7 +147,9 @@ public:
         mHistograms.resize( mNumLabels );
         mMean.resize( mNumLabels );
 
-        #pragma omp parallel for schedule(dynamic)
+        #ifdef _OPENMP
+            #pragma omp parallel for schedule(dynamic)
+        #endif
         for (unsigned int sIdx=0; sIdx < mNumLabels; sIdx++)
         {
             mMean[sIdx] = computeHistogram(

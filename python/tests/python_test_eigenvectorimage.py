@@ -1,4 +1,4 @@
-from IIBoost import EigenVectorsOfHessianImage
+from iiboost import EigenVectorsOfHessianImage
 from sklearn.externals import joblib    # to load data
 
 import numpy as np

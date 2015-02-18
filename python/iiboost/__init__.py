@@ -1,1 +1,1 @@
-from booster import Booster
+from booster import Booster, EigenVectorsOfHessianImage

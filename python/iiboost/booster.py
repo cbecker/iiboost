@@ -64,8 +64,6 @@ def propListToCArray( L, prop, cArrayElType ):
 class EigenVectorsOfHessianImage:
     """ Computes an orientation matrix (3x3) per pixel """
 
-    libName = "libiiboost_python.so"
-
     # will hold C pointer to image
     imgPtr = None
 
@@ -73,7 +71,7 @@ class EigenVectorsOfHessianImage:
     libPtr = None
 
     def __init__(self):
-        self.libPtr = ctypes.CDLL( self.libName )
+        self.libPtr = ctypes.CDLL( libName )
         self.imgPtr = None
 
         self.libPtr.computeEigenVectorsOfHessianImage.restype = ctypes.c_void_p

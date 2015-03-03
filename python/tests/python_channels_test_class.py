@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from iiboost import Booster, EigenVectorsOfHessianImage
+from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage
 from sklearn.externals import joblib	# to load data
 
 import numpy as np
@@ -30,8 +30,6 @@ channel1 = iiImage
 channel2 = iiImage
 channels3 = channels2 = channels1 = [channel1,channel2]
 
-
-
 # anisotropy factor is the ratio between z voxel size and x/y voxel size.
 # if Isotropic -> 1.0
 zAnisotropyFactor = 1.0;
@@ -39,17 +37,9 @@ zAnisotropyFactor = 1.0;
 # this is typically a good value, but it depends on the voxel size of the data
 hessianSigma = 3.5
 
-
-
-# compute hessian eigen vectors
-eigV1 = EigenVectorsOfHessianImage()
-eigV1.compute( img1, zAnisotropyFactor, hessianSigma )
-
-eigV2 = EigenVectorsOfHessianImage()
-eigV2.compute( img2, zAnisotropyFactor, hessianSigma )
-
-eigV3 = EigenVectorsOfHessianImage()
-eigV3.compute( img3, zAnisotropyFactor, hessianSigma )
+eigV1 = computeEigenVectorsOfHessianImage( img1, zAnisotropyFactor, hessianSigma )
+eigV2 = computeEigenVectorsOfHessianImage( img2, zAnisotropyFactor, hessianSigma )
+eigV3 = computeEigenVectorsOfHessianImage( img3, zAnisotropyFactor, hessianSigma )
 
 # Train: note that we pass a list of stacks
 model.trainWithChannels( [img1,img2,img3], [eigV1, eigV2, eigV3], [gt1,gt2,gt3], [channels1,channels2,channels3], 

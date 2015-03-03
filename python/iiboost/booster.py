@@ -17,6 +17,7 @@
 ##////////////////////////////////////////////////////////////////////////////////
 
 import os
+import collections
 import numpy as np
 import ctypes
 
@@ -148,20 +149,21 @@ class Booster(object):
 			"""   numStumps:    integer, number of stumps to train 										  """
 			"""   gtPositive/NegativeLabel:    value of positive and negative training data in ground truth """
 			""" WARNING: it assumes stacks are in C ordering """
-
-			if (type(imgStackList) != list) or (type(gtStackList) != list) or \
-                (type(chStackListList) != list) or \
-                (type(eigVecOfHessianImgList) != list):
-				raise RuntimeError("image, gt and channels stack list must of be of type LIST")
+			for param in (imgStackList, gtStackList, chStackListList, eigVecOfHessianImgList):
+				if not isinstance(param, collections.Iterable):
+					raise RuntimeError("imgStackList, eigVecOfHessianImgList gtStackList, "
+									   "and chStackListList must each be iterable (e.g. a list)")
 
 			# check shape/type of img and gt
-			if len(imgStackList) != len(gtStackList) or len(gtStackList) != len(chStackListList) or len(gtStackList) != len(eigVecOfHessianImgList):
+			if not (len(imgStackList) == len(gtStackList) == len(chStackListList) == len(eigVecOfHessianImgList)):
 				raise RuntimeError("image, eig vec, gt stack and channels list must of be of same size,",
-														len(imgStackList)," ",len(gtStackList)," ",len(chStackListList), " ",len(eigVecOfHessianImgList))
+									len(imgStackList)," ",len(gtStackList)," ",len(chStackListList), " ",len(eigVecOfHessianImgList))
 
 			for chStackList in chStackListList :
-				if (type(chStackList) != list):
-					raise RuntimeError("Every channel stack list must of be of type LIST")
+				if not isinstance(chStackList, collections.Iterable):
+					raise RuntimeError("Channel stacks must be provided as a sequence.")
+				if isinstance(chStackList, np.ndarray) and chStackList.ndim != 4:
+					raise RuntimeError("Channel stacks must be provided as a sequence of 3D volumes.")
 
 				if len(chStackList) != len(chStackListList[0]):
 					raise RuntimeError("Number of channels for each image must be the same")
@@ -171,10 +173,13 @@ class Booster(object):
 					if img.shape != gt.shape or gt.shape != ch.shape:
 						raise RuntimeError("image, ground truth and channels must be of same size,",img.shape," ",gt.shape," ",ch.shape)
 
-				if (img.dtype != np.dtype("uint8")) or \
-                    (gt.dtype != np.dtype("uint8")) or \
-                    (ch.dtype != np.dtype("float32")):
-					raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")
+					if (img.dtype != np.dtype("uint8")) or \
+	                    (gt.dtype != np.dtype("uint8")) or \
+	                    (ch.dtype != np.dtype("float32")):
+						raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")
+					
+					if 0 in img.shape or 0 in gt.shape or 0 in ch.shape or 0 in eigvec.shape:
+						raise RuntimeError("One of the inputs has a zero shape.")
 
 				if not eigvec.flags["C_CONTIGUOUS"]:
 					raise RuntimeError("eigVecImg must be C-contiguous")
@@ -239,8 +244,10 @@ class Booster(object):
 		if eigVecImg.shape != imgStack.shape + (3,3):
 			raise RuntimerError("eigVecImg has unexpected shape: {} for raw image of shape: {}".format( eigVecImg.shape, imgStack.shape ))
 
-		if (type(chStackList) != list) :
-			raise RuntimeError("Channels stack list must of be of type LIST")
+		if not isinstance(chStackList, collections.Iterable):
+			raise RuntimeError("Channel stack must be provided as a sequence.")
+		if isinstance(chStackList, np.ndarray) and chStackList.ndim != 4:
+			raise RuntimeError("Channel stack must be provided as a sequence of 3D volumes.")
 
 		# check shape/type of img and gt
 		for ch in chStackList:

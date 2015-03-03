@@ -24,17 +24,7 @@ from exceptions import RuntimeError
 
 # libiiboost_python.so must reside in the same directory as this module.
 libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
-
-# converts directly to c array (eg. list of void pointers)
-#  and puts it in an array of element type cArrayElType
-def directToCArray( L, prop, cArrayElType ):
-	N = len(L)
-	arr = (cArrayElType * N)()
-
-	for idx,e in enumerate(L):
-		arr[idx] = eval( "e." + prop )
-
-	return arr
+libPtr = ctypes.CDLL( libName )
 
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
@@ -61,52 +51,50 @@ def propListToCArray( L, prop, cArrayElType ):
 
 
 ## --- For orientation, computes 9 float values per pixel ---
-class EigenVectorsOfHessianImage:
-    """ Computes an orientation matrix (3x3) per pixel """
+class EigenVectorsOfHessianImage(np.ndarray):
+    """
+    A subclass of numpy.ndarray returned by computeEigenVectorsOfHessianImage()
+    When the array is deleted, it will free the underlying buffer allocated from C++.
+    """
+    def __new__(cls, ptr_address, shape):
+        ArrayType = ctypes.c_float*int(np.prod(shape))
+        obj = np.frombuffer(ArrayType.from_address(ptr_address), dtype=np.float32).reshape(shape).view(cls)
+        obj.imgPtr = ctypes.c_void_p(ptr_address)
+        return obj
 
-    # will hold C pointer to image
-    imgPtr = None
-
-    # holds ptr to library (ctypes)
-    libPtr = None
-
-    def __init__(self):
-        self.libPtr = ctypes.CDLL( libName )
+    def __array_finalize__(self, obj):
         self.imgPtr = None
 
-        self.libPtr.computeEigenVectorsOfHessianImage.restype = ctypes.c_void_p
-
-
-    # sigma is the smoothing factor, in pixels
-    def compute( self, imgStack, zAnisotropyFactor, sigma=3.5 ):
-        if imgStack.dtype != np.dtype("uint8"):
-            raise RuntimeError("image must be of uint8 type")
-
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
-        width = imgStack.shape[2]
-        height = imgStack.shape[1]
-        depth = imgStack.shape[0]
-
-        self.imgPtr = ctypes.c_void_p(self.libPtr.computeEigenVectorsOfHessianImage( ctypes.c_void_p(imgStack.ctypes.data),
-                                                ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
-                                                ctypes.c_double(zAnisotropyFactor),
-                                                ctypes.c_double(sigma) ))
-
-    def free( self ):
-        if self.imgPtr != None:
-            self.libPtr.freeEigenVectorsOfHessianImage( self.imgPtr )
-            self.imgPtr = None
-
-    # we need a proper destructor to delete the C pointer
-    # (because we love hacking code and dirty pointers)
     def __del__(self):
-        self.free()
+        if self.imgPtr:
+            assert self.imgPtr != -1, "Double-delete detected!"
+            libPtr.freeEigenVectorsOfHessianImage( self.imgPtr )
+            self.imgPtr = -1		
 
+# sigma is the smoothing factor, in pixels
+libPtr.computeEigenVectorsOfHessianImage.restype = ctypes.c_void_p
+def computeEigenVectorsOfHessianImage( imgStack, zAnisotropyFactor, sigma=3.5 ):
+    """
+    Computes an orientation matrix (3x3) per pixel.
+    """
+    if imgStack.dtype != np.dtype("uint8"):
+		raise RuntimeError("image must be of uint8 type")
+	
+	# 'mangle' dimensions to deal with storage order (assuming C-style)
+    width = imgStack.shape[2]
+    height = imgStack.shape[1]
+    depth = imgStack.shape[0]
 
+    ptr_address = libPtr.computeEigenVectorsOfHessianImage( 
+					ctypes.c_void_p(imgStack.ctypes.data),
+					ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+					ctypes.c_double(zAnisotropyFactor),
+					ctypes.c_double(sigma) )
 
+    return EigenVectorsOfHessianImage(ptr_address, imgStack.shape + (3,3))
 
 ## --- Booster Class ---
-class Booster:
+class Booster(object):
 	""" Booster class based on context cue boosting """
 
 	# will hold C pointer to model
@@ -137,8 +125,7 @@ class Booster:
 		if type(modelString) != str:
 			raise RuntimeError("Tried to deserialize(), but modelString must be a string.")
 
-		newModelPtr = ctypes.c_void_p( 
-							self.libPtr.deserializeModel( ctypes.c_char_p(modelString) ) )
+		newModelPtr = ctypes.c_void_p( self.libPtr.deserializeModel( ctypes.c_char_p(modelString) ) )
 
 		if newModelPtr.value == None:
 			raise RuntimeError("Error deserializing.")
@@ -189,8 +176,10 @@ class Booster:
                     (ch.dtype != np.dtype("float32")):
 					raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")
 
-				if not isinstance(eigvec, EigenVectorsOfHessianImage):
-					raise RuntimeError("eigVecImg must be of type EigenVectorsOfHessianImage")
+				if not eigvec.flags["C_CONTIGUOUS"]:
+					raise RuntimeError("eigVecImg must be C-contiguous")
+				if eigvec.shape != img.shape + (3,3):
+					raise RuntimeError("eigVecImg shape is {}, which doesn't correspond to raw image shape: {}.".format( eigvec.shape, img.shape ))
 
 			# 'mangle' dimensions to deal with storage order (assuming C-style)
 			width  = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
@@ -200,7 +189,7 @@ class Booster:
 			# C array of pointers
 			imgs  = propToCArray( imgStackList, "ctypes.data", ctypes.c_void_p )
 			gts   = propToCArray(  gtStackList, "ctypes.data", ctypes.c_void_p )
-			evecs = directToCArray(  eigVecOfHessianImgList, "imgPtr", ctypes.c_void_p )
+			evecs = propToCArray(  eigVecOfHessianImgList, "ctypes.data", ctypes.c_void_p )
 
 			chans = propListToCArray( chStackListList, "ctypes.data", ctypes.c_void_p )
 
@@ -244,8 +233,11 @@ class Booster:
 		if imgStack.dtype != np.dtype("uint8"):
 			raise RuntimeError("image must be of uint8 type")
 
-		if not isinstance(eigVecImg, EigenVectorsOfHessianImage):
-			raise RuntimeError("eigVecImg must be of type EigenVectorsOfHessianImage")
+		if not eigVecImg.flags["C_CONTIGUOUS"] or eigVecImg.dtype != np.float32:
+			raise RuntimeError("eigVecImg must be a contiguous float32 array")
+		
+		if eigVecImg.shape != imgStack.shape + (3,3):
+			raise RuntimerError("eigVecImg has unexpected shape: {} for raw image of shape: {}".format( eigVecImg.shape, imgStack.shape ))
 
 		if (type(chStackList) != list) :
 			raise RuntimeError("Channels stack list must of be of type LIST")
@@ -277,7 +269,7 @@ class Booster:
 		# Run prediction
 		ret = self.libPtr.predictWithChannels( self.modelPtr,
 				ctypes.c_void_p(imgStack.ctypes.data),
-				eigVecImg.imgPtr,
+				ctypes.c_void_p(eigVecImg.ctypes.data),
 				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
 				chans,
 				ctypes.c_int( len(chans) ), ctypes.c_double(zAnisotropyFactor),
@@ -307,8 +299,8 @@ class Booster:
 
 
 		self.libPtr.computeIntegralImage( ctypes.c_void_p(imgStack.ctypes.data),
-															ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
-															ctypes.c_void_p(integralImage.ctypes.data) )
+										  ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+										  ctypes.c_void_p(integralImage.ctypes.data) )
 
 		return integralImage
 

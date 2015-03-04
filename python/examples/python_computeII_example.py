@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from IIBoost import Booster
+from IIBoost import computeIntegralImage
 from sklearn.externals import joblib	# to load data
 
 import numpy as np
@@ -17,9 +17,7 @@ img = joblib.load("img.jlb")
 
 imgFloat = np.float32(img)
 
-iiComputer = Booster()
-
-iiImage = iiComputer.computeIntegralImage( imgFloat )
+iiImage = computeIntegralImage( imgFloat )
 
 print "And now for the show."
 

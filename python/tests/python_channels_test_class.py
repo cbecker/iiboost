@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage
+from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage
 from sklearn.externals import joblib	# to load data
 
 import numpy as np
@@ -23,7 +23,7 @@ gt3  =  gt2 =  gt1 = gt
 model = Booster()
 
 imgFloat = np.float32(img)
-iiImage = model.computeIntegralImage( imgFloat )
+iiImage = computeIntegralImage( imgFloat )
 
 # again, this is stupid, just presume the second channel is a different feature
 channel1 = iiImage

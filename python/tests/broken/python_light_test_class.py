@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from iiboost import Booster
+from iiboost import Booster, computeIntegralImage
 from sklearn.externals import joblib	# to load data
 
 import numpy as np
@@ -18,13 +18,13 @@ img = joblib.load("../../testData/img.jlb")
 model = Booster()
 
 imgFloat = np.float32(img)
-iiImage = model.computeIntegralImage( imgFloat )
+iiImage = computeIntegralImage( imgFloat )
 
 # Train: note that we pass a list of stacks
 model.trainWithChannel( [img], [gt], [iiImage], numStumps=100, debugOutput=True)
 
 imgFloat = np.float32(img)
-iiImage = model.computeIntegralImage( imgFloat )
+iiImage = computeIntegralImage( imgFloat )
 
 pred = model.predictWithChannel( img, iiImage )
 

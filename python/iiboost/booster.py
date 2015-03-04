@@ -79,7 +79,13 @@ def computeEigenVectorsOfHessianImage( imgStack, zAnisotropyFactor, sigma=3.5 ):
     Computes an orientation matrix (3x3) per pixel.
     """
     if imgStack.dtype != np.dtype("uint8"):
-		raise RuntimeError("image must be of uint8 type")
+        raise RuntimeError("image must be of uint8 type")
+
+    if not imgStack.flags["C_CONTIGUOUS"]:
+        raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
+	if not imgStack.ndim != 3:
+		raise RuntimeError("image must be 3D.")
 	
 	# 'mangle' dimensions to deal with storage order (assuming C-style)
     width = imgStack.shape[2]
@@ -93,6 +99,39 @@ def computeEigenVectorsOfHessianImage( imgStack, zAnisotropyFactor, sigma=3.5 ):
 					ctypes.c_double(sigma) )
 
     return EigenVectorsOfHessianImage(ptr_address, imgStack.shape + (3,3))
+
+def computeIntegralImage( input_image ):
+	"""
+	Compute the integral image for the given volume.
+	Roughly equivalent to:
+	
+	output = input_image.copy()
+    for i in range(input_image.ndim):
+        np.add.accumulate(output, axis=i, out=output)
+	"""
+	if input_image.dtype != np.dtype("float32"):
+		raise RuntimeError("image must be of float32 type")
+
+	if not input_image.flags["C_CONTIGUOUS"]:
+		raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
+	# 'mangle' dimensions to deal with storage order (assuming C-style)
+	width = input_image.shape[2]
+	height = input_image.shape[1]
+	depth = input_image.shape[0]
+
+	# pre-alloc integral image
+	integralImage = np.empty_like( input_image, dtype=np.dtype("float32") )
+
+
+	libPtr.computeIntegralImage( ctypes.c_void_p(input_image.ctypes.data),
+								 ctypes.c_int(width), 
+								 ctypes.c_int(height), 
+								 ctypes.c_int(depth),
+								 ctypes.c_void_p(integralImage.ctypes.data) )
+
+	return integralImage
+
 
 ## --- Booster Class ---
 class Booster(object):
@@ -238,8 +277,11 @@ class Booster(object):
 		if imgStack.dtype != np.dtype("uint8"):
 			raise RuntimeError("image must be of uint8 type")
 
+		if not imgStack.flags["C_CONTIGUOUS"]:
+			raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
 		if not eigVecImg.flags["C_CONTIGUOUS"] or eigVecImg.dtype != np.float32:
-			raise RuntimeError("eigVecImg must be a contiguous float32 array")
+			raise RuntimeError("eigVecImg must be a contiguous float32 array, provided in z-y-x order.")
 		
 		if eigVecImg.shape != imgStack.shape + (3,3):
 			raise RuntimerError("eigVecImg has unexpected shape: {} for raw image of shape: {}".format( eigVecImg.shape, imgStack.shape ))
@@ -251,6 +293,9 @@ class Booster(object):
 
 		# check shape/type of img and gt
 		for ch in chStackList:
+			if not imgStack.flags["C_CONTIGUOUS"]:
+				raise RuntimeError("channels must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
 			if imgStack.shape != ch.shape :
 				raise RuntimeError("image and channels must be of same size,",imgStack.shape," ",ch.shape)
 
@@ -289,27 +334,6 @@ class Booster(object):
 			raise RuntimeError("Error during prediction, see above.");
 
 		return pred
-
-	def computeIntegralImage( self, imgStack ):
-		
-		""" returns confidence stack of pixel type float """
-		if imgStack.dtype != np.dtype("float32"):
-			raise RuntimeError("image must be of float32 type")
-
-		# 'mangle' dimensions to deal with storage order (assuming C-style)
-		width = imgStack.shape[2]
-		height = imgStack.shape[1]
-		depth = imgStack.shape[0]
-
-		# pre-alloc integral image
-		integralImage = np.empty_like( imgStack, dtype=np.dtype("float32") )
-
-
-		self.libPtr.computeIntegralImage( ctypes.c_void_p(imgStack.ctypes.data),
-										  ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
-										  ctypes.c_void_p(integralImage.ctypes.data) )
-
-		return integralImage
 
 	# if model is not null, free it
 	def freeModel(self):

@@ -69,7 +69,7 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 # RAPIDJSON, and make assert throw exception rather than raw assert
 #  TODO: may need correction to include <stdexcept>
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
-add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
+add_definitions( "-D\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\"rapidjson exception\\\");\"" )
 
 # Common libs needed for linking
 set(COMMON_LIBS ${ITK_LIBRARIES} randomlib stdc++)  # not sure why we need stdc++ here

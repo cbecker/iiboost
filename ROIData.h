@@ -49,9 +49,11 @@
  */
 struct ROIData
 {
+public:
+    typedef AllEigenVectorsOfHessian::EigenVectorImageType  ItkEigenVectorImageType;
+
 private:
     // rotation matrices, as Itk matrices, one per channel
-    typedef AllEigenVectorsOfHessian::EigenVectorImageType  ItkEigenVectorImageType;
     ItkEigenVectorImageType::Pointer  rotMatricesImg;
 
     float       mZAnisotropyFactor;
@@ -265,10 +267,13 @@ public:
 #endif
 
     // initialize from images, using move semantics
+    // (except if cachedRotMatrices is provided, which is a pointer
+    //   and it must remain valid for training and/or prediction )
     void init( Matrix3D<ImagePixelType> &&rawImg, 
                Matrix3D<ImagePixelType> &&gtImg, 
                const float zAnisotropyFactor = 1.0,
-               const float rotHessianSigma = 3.5 )
+               const float rotHessianSigma = 3.5,
+               const RotationMatrixType *cachedRotMatrices = nullptr )
     {
         // in case we had other info before
         freeIntegralImages();
@@ -277,7 +282,11 @@ public:
         rawImage = std::move(rawImg);
         gtImage = std::move(gtImg);
 
-        updateRotationMatrices( rotHessianSigma );
+        if ( cachedRotMatrices == nullptr )
+            updateRotationMatrices( rotHessianSigma );
+        else
+            rotMatrices = cachedRotMatrices;
+
         mInitialized = true;
     }
 
@@ -288,7 +297,8 @@ public:
                unsigned numII,
                unsigned width, unsigned height, unsigned depth,
                const float zAnisotropyFactor = 1.0,
-               const float rotHessianSigma = 3.5)
+               const float rotHessianSigma = 3.5,
+               const RotationMatrixType *cachedRotMatrices = nullptr )
     {
 #if USE_MEANVAR_NORMALIZATION
         qFatal("init() with pointers not supported with mean variance normalization, needs fix!");
@@ -300,7 +310,11 @@ public:
         rawImage.fromSharedData( rawImgPtr, width, height, depth );
         gtImage.fromSharedData( gtImgPtr, width, height, depth );
 
-        updateRotationMatrices( rotHessianSigma );
+        if ( cachedRotMatrices == nullptr )
+            updateRotationMatrices( rotHessianSigma );
+        else
+            rotMatrices = cachedRotMatrices;
+
 
         for (unsigned i=0; i < numII; i++)
         {

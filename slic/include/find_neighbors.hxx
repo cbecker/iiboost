@@ -63,7 +63,9 @@ static void	findNeighbors( const Matrix3D<unsigned int> &mImg, const unsigned in
   // go through the image
   for (unsigned int z=1; z < depth-1; z++)
   {
-	#pragma omp parallel for schedule(dynamic)
+    #ifdef _OPENMP
+	    #pragma omp parallel for schedule(dynamic)
+    #endif
     for (unsigned int y=1; y < height-1; y++)
     {
       for (unsigned int x=1; x < width-1; x++)

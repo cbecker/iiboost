@@ -2,8 +2,10 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from IIBoost import Booster
+from IIBoost import computeIntegralImage
 from sklearn.externals import joblib	# to load data
+
+import numpy as np
 
 # to show something
 import matplotlib.pyplot as plt
@@ -13,30 +15,23 @@ import matplotlib.pyplot as plt
 gt = joblib.load("gt.jlb")
 img = joblib.load("img.jlb")
 
+imgFloat = np.float32(img)
 
-model = Booster()
+iiImage = computeIntegralImage( imgFloat )
 
-# Train: note that we pass a list of stacks
-model.train( [img], [gt], numStumps=100, debugOutput=True)
-
-pred = model.predict( img )
-
+print "And now for the show."
 
 # show image & prediction side by side
 plt.ion()
 plt.figure()
 
 plt.subplot(1,2,1)
-plt.imshow(img[:,:,10],cmap="gray")
-plt.title("Click on the image to exit")
+plt.imshow(imgFloat[:,:,10],cmap="gray")
+plt.title("Click on any image to exit")
 
 plt.subplot(1,2,2)
-plt.imshow(pred[:,:,10],cmap="gray")
-plt.title("Click on the image to exit")
+plt.imshow(iiImage[:,:,10],cmap="gray")
+plt.title("Click on any image to exit")
 
 plt.ginput(1)
 
-ss = model.serialize()
-model.deserialize( ss )
-
-#print "Serialization string: " + model.serialize()

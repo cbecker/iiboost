@@ -59,6 +59,7 @@ extern "C"
     //  Assumes that predPtr is already allocated, of same size as imgPtr
     //  Returns 0 if ok
     int predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
+    						  void *eigVecImgPtr,
                               int width, int height, int depth,
                               IntegralImagePixelType **chImgPtr,
                               int numChannels, double zAnisotropyFactor,
@@ -70,8 +71,7 @@ extern "C"
 
         // create roi for image, no GT available
         ROIData roi;
-        roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor);
-
+        roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor, 0.0, (const ROIData::RotationMatrixType *) eigVecImgPtr );
         ROIData::IntegralImageType ii[numChannels];  // TODO: remove
 
         for (int ch=0; ch < numChannels; ch++)
@@ -106,7 +106,9 @@ extern "C"
     //		  multiple img sizes
     // returns a BoosterModel *
     // -- BEWARE: this function is a mix of dirty tricks right now
-    void * trainWithChannels( ImagePixelType **imgPtr, GTPixelType **gtPtr,
+    void * trainWithChannels( ImagePixelType **imgPtr, 
+                             void **evecPtr,
+                             GTPixelType **gtPtr,
                              int *width, int *height, int *depth,
                              int numStacks,
                              IntegralImagePixelType **chImgPtr,
@@ -128,7 +130,8 @@ extern "C"
             {
                 rois[i].setGTNegativeSampleLabel(gtNegativeLabel);
                 rois[i].setGTPositiveSampleLabel(gtPositiveLabel);
-                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i], zAnisotropyFactor);
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i], 
+                              zAnisotropyFactor, 0.0, (const ROIData::RotationMatrixType *) evecPtr[i] );
 
                 for (int ch=0; ch < numChannels; ch++)
                 {
@@ -340,5 +343,35 @@ extern "C"
         adaboost.setModel( *((BoosterModel *) modelPtr) );
 
         adaboost.predict( allROIs, &predMatrix );
+    }
+
+
+    /*** Eigenvectors of Image wrappers ****/
+    void *computeEigenVectorsOfHessianImage( ImagePixelType *imgPtr, 
+                                      int width, int height, int depth,
+                                      double zAnisotropyFactor,
+                                      double sigma )
+    {
+        Matrix3D<ImagePixelType> rawImg;
+        rawImg.fromSharedData( imgPtr, width, height, depth );
+
+        // compute eigen stuff
+        ROIData::ItkEigenVectorImageType::Pointer rotImg = 
+                AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
+                    sigma, zAnisotropyFactor, rawImg.asItkImage(), 
+                    AllEigenVectorsOfHessian::EByMagnitude );
+
+        rotImg->GetPixelContainer()->SetContainerManageMemory(false);
+
+        return rotImg->GetPixelContainer()->GetImportPointer();
+    }
+
+    void freeEigenVectorsOfHessianImage( void *ptr )
+    {
+        if ( ptr == 0 )
+            return;
+        
+        typedef ROIData::ItkEigenVectorImageType::PixelType EigenVectorMatrixType;
+        delete[] ((EigenVectorMatrixType *) ptr);
     }
 }

@@ -23,12 +23,20 @@
 #include "ContextFeatures/WeakLearner.h"
 #include "ContextFeatures/ContextRelativePoses.h"
 #include "utils/DiscreteRandomSampler.h"
-#include <omp.h>
+#ifdef _OPENMP
+    #include <omp.h>
+#endif
 
 #include "SmartPtrs.h"
 
 // we need the boosting model
 #include "BoosterModel.h"
+
+#ifdef _OPENMP
+    const unsigned IIBOOST_NUM_THREADS = omp_get_max_threads();
+#else
+    const unsigned IIBOOST_NUM_THREADS = 4;
+#endif
 
 // an operator to speed up prediction
 template<typename PredType>
@@ -247,7 +255,7 @@ public:
 		subsampledWeights->setConstant(1.0 / totSampled);
 	}
 
-	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = omp_get_max_threads() )
+	void train( const BoosterInputData &bid, unsigned numIters, unsigned numThreads = IIBOOST_NUM_THREADS )
 	{
 		// sanity check, was bid correctly initialized?
 		if ( !bid.initialized() )
@@ -352,7 +360,7 @@ public:
 	void predict( MultipleROIData &rois,
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
-				  unsigned numThreads = omp_get_max_threads() ) const
+				  unsigned numThreads = IIBOOST_NUM_THREADS ) const
 	{
 		// for later use
 		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
@@ -413,7 +421,7 @@ public:
 	void predictWithFeatureOrdering( MultipleROIData &rois,
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
-				  unsigned numThreads = omp_get_max_threads() ) const
+				  unsigned numThreads = IIBOOST_NUM_THREADS ) const
 	{
 		// for later use
 		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
@@ -499,7 +507,7 @@ public:
 	void predictDoublePolarity( MultipleROIData &rois,   //rois is not const bcos we need to invert matrices
 				  Matrix3D<float> *pred,
 				  unsigned roiNo = 0,
-				  unsigned numThreads = omp_get_max_threads() ) const
+				  unsigned numThreads = IIBOOST_NUM_THREADS ) const
 	{
 		// for later use
 		const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;

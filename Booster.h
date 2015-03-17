@@ -330,10 +330,13 @@ public:
 			else
 			{
 				// learn on subset
-				if (weakErr < 1e-16)	// in case we get perfect classification (unlikely)
+				if (weakErr < 1e-16)	// in case we get perfect classification (unlikely, or training data is too easy)
+				{
 					weakErr = 1e-16;
-
-				alpha = 0.5 * log( (1.0 - weakErr) / weakErr );
+					alpha = 0.1;
+				}
+				else
+					alpha = 0.5 * log( (1.0 - weakErr) / weakErr );
 			}
 			if (mShowDebugInfo)
 				qDebug("Alpha: %f", alpha);

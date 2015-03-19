@@ -27,6 +27,9 @@ from exceptions import RuntimeError
 libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
 libPtr = ctypes.CDLL( libName )
 
+def as_carray(l, carray_el_type):
+	return (carray_el_type * len(l))(*l)
+
 # gets 'prop' from every element in L
 #  and puts it in an array of element type cArrayElType
 def propToCArray( L, prop, cArrayElType ):
@@ -34,7 +37,7 @@ def propToCArray( L, prop, cArrayElType ):
 	arr = (cArrayElType * N)()
 
 	for idx,e in enumerate(L):
-		arr[idx] = cArrayElType( eval( "e." + prop ) )
+		arr[idx] = cArrayElType(eval("e." + prop))
 
 	return arr
 
@@ -46,7 +49,7 @@ def propListToCArray( L, prop, cArrayElType ):
 
 	for idm, m in enumerate(L):
 		for idx,e in enumerate(m):
-			arr[idm*N + idx] = cArrayElType( eval( "e." + prop ) )
+			arr[idm*N + idx] = cArrayElType(eval("e." + prop))
 
 	return arr
 
@@ -152,27 +155,47 @@ class Booster(object):
 		self.libPtr.train.restype = ctypes.c_void_p
 		self.libPtr.trainWithChannel.restype = ctypes.c_void_p
 		self.libPtr.trainWithChannels.restype = ctypes.c_void_p
+		self.libPtr.wlpredictWithChannels.restype = ctypes.c_int
+		self.libPtr.wlAlphas.restype = ctypes.py_object
 
 	# returns a string representation of the model
 	def serialize( self ):
-		if self.modelPtr == None:
+		if self.modelPtr is None:
 			raise RuntimeError("Tried to serialize(), but no model available.")
 
 		return self.libPtr.serializeModel( self.modelPtr )
 
 	# construct model from string representation
 	def deserialize( self, modelString ):
-		if type(modelString) != str:
+		if not isinstance(modelString, basestring):
 			raise RuntimeError("Tried to deserialize(), but modelString must be a string.")
 
 		newModelPtr = ctypes.c_void_p( self.libPtr.deserializeModel( ctypes.c_char_p(modelString) ) )
 
-		if newModelPtr.value == None:
+		if newModelPtr.value is None:
 			raise RuntimeError("Error deserializing.")
 
 		self.freeModel()
 		self.modelPtr = newModelPtr
 
+	def __getstate__(self):
+		return self.serialize()
+
+	def __setstate__(self, state):
+		self.__init__()
+		self.deserialize(state)
+	
+	def number_of_weaklearners(self):
+		if self.modelPtr is None:
+			raise ValueError("No model available") 
+		
+		return self.libPtr.numberOfWeakLearners(self.modelPtr)
+	
+	def wl_alphas(self):
+		if self.modelPtr is None:
+			raise ValueError("No model available") 
+		
+		return np.array(self.libPtr.wlAlphas(self.modelPtr))
 
 	def trainWithChannels( self, imgStackList, eigVecOfHessianImgList,
                            gtStackList, chStackListList, 
@@ -269,38 +292,8 @@ class Booster(object):
 		"""   chStackList:  	 list of integral images/channels """
 		"""   zAnisotropyFactor: ratio between z voxel size and x/y voxel size """
 		"""   useEarlyStopping:  speeds up prediction considerably by approximating the prediction score """
-
-		if self.modelPtr == None:
-			raise RuntimeError("Tried to predict(), but no model available.")
-
-		""" returns confidence stack of pixel type float """
-		if imgStack.dtype != np.dtype("uint8"):
-			raise RuntimeError("image must be of uint8 type")
-
-		if not imgStack.flags["C_CONTIGUOUS"]:
-			raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
-
-		if not eigVecImg.flags["C_CONTIGUOUS"] or eigVecImg.dtype != np.float32:
-			raise RuntimeError("eigVecImg must be a contiguous float32 array, provided in z-y-x order.")
 		
-		if eigVecImg.shape != imgStack.shape + (3,3):
-			raise RuntimerError("eigVecImg has unexpected shape: {} for raw image of shape: {}".format( eigVecImg.shape, imgStack.shape ))
-
-		if not isinstance(chStackList, collections.Iterable):
-			raise RuntimeError("Channel stack must be provided as a sequence.")
-		if isinstance(chStackList, np.ndarray) and chStackList.ndim != 4:
-			raise RuntimeError("Channel stack must be provided as a sequence of 3D volumes.")
-
-		# check shape/type of img and gt
-		for ch in chStackList:
-			if not imgStack.flags["C_CONTIGUOUS"]:
-				raise RuntimeError("channels must be C_CONTIGUOUS, and must be provided in z-y-x order.")
-
-			if imgStack.shape != ch.shape :
-				raise RuntimeError("image and channels must be of same size,",imgStack.shape," ",ch.shape)
-
-			if (ch.dtype != np.dtype("float32")):
-				raise RuntimeError("channels must be of loat32 type")
+		self.__check_predict_params(imgStack, eigVecImg, chStackList)
 
 		# C array of pointers
 		chans = propToCArray(  chStackList, "ctypes.data", ctypes.c_void_p )
@@ -311,7 +304,7 @@ class Booster(object):
 		depth  = imgStack.shape[0]
 
 		# pre-alloc prediction
-		pred = np.empty_like( imgStack, dtype=np.dtype("float32") )
+		pred = np.empty_like(imgStack, dtype=np.float32)
 
 		if useEarlyStopping:
 				useEarlyStoppa = ctypes.c_int(1)
@@ -329,15 +322,89 @@ class Booster(object):
 				ctypes.c_void_p(pred.ctypes.data) )
 
 		ret = ctypes.c_int(ret)
-
+		
 		if ret.value != 0:
 			raise RuntimeError("Error during prediction, see above.");
 
 		return pred
 
+	def wlpredictWithChannels(self, imgStack, eigVecImg, chStackList, zAnisotropyFactor):
+		"""
+		Per-pixel predictions for every weak learner.
+		
+		Parameters are the same than those in predictWithChannels.
+		"""
+		
+		# Check parameters
+		self.__check_predict_params(imgStack, eigVecImg, chStackList)
+		
+		# C array of pointers
+		chans = as_carray([i.ctypes.data for i in chStackList], ctypes.c_void_p)
+
+		# 'mangle' dimensions to deal with storage order (assuming C-style)
+		width  = imgStack.shape[2]
+		height = imgStack.shape[1]
+		depth  = imgStack.shape[0]
+		
+		num_wl = self.number_of_weaklearners()
+		
+		# pre-alloc prediction
+		pred = np.empty((num_wl,) + imgStack.shape, dtype=np.int8)
+		pred_c = as_carray([i.ctypes.data for i in pred], ctypes.c_void_p)
+		
+		ret = self.libPtr.wlpredictWithChannels(self.modelPtr,
+				ctypes.c_void_p(imgStack.ctypes.data),
+				ctypes.c_void_p(eigVecImg.ctypes.data),
+				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),
+				chans,
+				ctypes.c_int( len(chans) ),
+				ctypes.c_double(zAnisotropyFactor),
+				pred_c
+			)
+		
+		ret = ctypes.c_int(ret)
+		
+		if ret.value != 0:
+			raise RuntimeError("Error during prediction, see above.");
+		
+		return pred
+	
+	def __check_predict_params(self, imgStack, eigVecImg, chStackList):
+		if self.modelPtr == None:
+			raise RuntimeError("Tried to predict(), but no model available.")
+
+		""" returns confidence stack of pixel type float """
+		if imgStack.dtype != np.dtype("uint8"):
+			raise ValueError("image must be of uint8 type")
+
+		if not imgStack.flags["C_CONTIGUOUS"]:
+			raise ValueError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
+		if not eigVecImg.flags["C_CONTIGUOUS"] or eigVecImg.dtype != np.float32:
+			raise ValueError("eigVecImg must be a contiguous float32 array, provided in z-y-x order.")
+		
+		if eigVecImg.shape != imgStack.shape + (3,3):
+			raise RuntimerError("eigVecImg has unexpected shape: {} for raw image of shape: {}".format( eigVecImg.shape, imgStack.shape ))
+
+		if not isinstance(chStackList, collections.Iterable):
+			raise ValueError("Channel stack must be provided as a sequence.")
+		if isinstance(chStackList, np.ndarray) and chStackList.ndim != 4:
+			raise ValueError("Channel stack must be provided as a sequence of 3D volumes.")
+
+		# check shape/type of img and gt
+		for ch in chStackList:
+			if not imgStack.flags["C_CONTIGUOUS"]:
+				raise ValueError("channels must be C_CONTIGUOUS, and must be provided in z-y-x order.")
+
+			if imgStack.shape != ch.shape :
+				raise ValueError("image and channels must be of same size,",imgStack.shape," ",ch.shape)
+
+			if (ch.dtype != np.dtype("float32")):
+				raise ValueError("channels must be of loat32 type")
+
 	# if model is not null, free it
 	def freeModel(self):
-		if self.modelPtr != None:
+		if self.modelPtr is not None:
 			self.libPtr.freeModel( self.modelPtr )
 			self.modelPtr = None
 

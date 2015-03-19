@@ -19,6 +19,7 @@
 #include "SmartPtrs.h"
 
 typedef float PredictionPixelType;
+typedef char WLPredictionPixelType;
 
 extern "C"
 {
@@ -52,14 +53,33 @@ extern "C"
 
 		return model;
 	}
-
+    
+    PyObject* wlAlphas(void *modelPtr)
+    {
+        BoosterModel* model = static_cast<BoosterModel*>(modelPtr);
+        
+        int num_wl = model->size();
+        PyObject* result = PyList_New(num_wl);
+        
+        for(int i=0; i < num_wl; ++i)
+        {
+            PyList_SetItem(result, i, PyFloat_FromDouble((*model)[i].alpha));
+        }
+        
+        return result;
+    }
+    
+    int numberOfWeakLearners(void *modelPtr)
+    {
+        return static_cast<BoosterModel*>(modelPtr)->size();
+    }
 
     // Prediction for a single ROI
     //  Accepts an arbitrary number of integral images/channels.
     //  Assumes that predPtr is already allocated, of same size as imgPtr
     //  Returns 0 if ok
     int predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
-    						  void *eigVecImgPtr,
+                              void *eigVecImgPtr,
                               int width, int height, int depth,
                               IntegralImagePixelType **chImgPtr,
                               int numChannels, double zAnisotropyFactor,
@@ -92,6 +112,50 @@ extern "C"
                 adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix );
             else
                 adaboost.predictWithFeatureOrdering<false>( allROIs, &predMatrix );
+        }
+        catch( std::exception &e )
+        {
+            printf("Error in prediction: %s\n", e.what());
+            return -1;
+        }
+
+        return 0;
+    }
+
+    int wlpredictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
+                               void *eigVecImgPtr,
+                               int width, int height, int depth,
+                               IntegralImagePixelType **chImgPtr,
+                               int numChannels, double zAnisotropyFactor,
+                               WLPredictionPixelType **predPtr)
+    {
+        BoosterModel* model = static_cast<BoosterModel*>(modelPtr);
+        
+        int numWL = model->size();
+        Matrix3D<WLPredictionPixelType> predMatrix[numWL]; // TODO: remove
+        for(int i=0; i < numWL; ++i)
+            predMatrix[i].fromSharedData(predPtr[i], width, height, depth);
+        
+        // create roi for image, no GT available
+        ROIData roi;
+        roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor, 0.0, (const ROIData::RotationMatrixType *) eigVecImgPtr );
+        ROIData::IntegralImageType ii[numChannels];  // TODO: remove
+
+        for (int ch=0; ch < numChannels; ch++)
+        {
+           ii[ch].fromSharedData(chImgPtr[ch], width, height, depth);
+
+           roi.addII( ii[ch].internalImage().data() );
+        }
+
+        MultipleROIData allROIs;
+        allROIs.add( shared_ptr_nodelete(ROIData, &roi) );
+
+        try
+        {
+            Booster adaboost;
+            adaboost.setModel(*model);
+            adaboost.wlpredict(allROIs, predMatrix);
         }
         catch( std::exception &e )
         {

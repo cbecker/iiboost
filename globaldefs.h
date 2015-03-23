@@ -26,10 +26,12 @@ typedef float 			IntegralImagePixelType;  // this can make a huge difference in 
 typedef unsigned char	ImagePixelType;
 typedef double AdaBoostErrorType;
 
-// Ground Truth
+// Ground Truth image pixel type
 typedef unsigned char	GTPixelType;
+
+// used internally only
 static const GTPixelType GTNegLabel = 0;
-static const GTPixelType GTPosLabel = 2;
+static const GTPixelType GTPosLabel = 1;
 
 // supervoxel or voxel-based?
 // So far, no supervoxel support available

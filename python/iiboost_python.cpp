@@ -61,7 +61,8 @@ extern "C"
     int predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
                               int width, int height, int depth,
                               IntegralImagePixelType **chImgPtr,
-                              int numChannels,
+                              int numChannels, double zAnisotropyFactor,
+                              int useEarlyStopping,
                               PredictionPixelType *predPtr )
     {
         Matrix3D<PredictionPixelType> predMatrix;
@@ -69,7 +70,7 @@ extern "C"
 
         // create roi for image, no GT available
         ROIData roi;
-        roi.init( imgPtr, 0, 0, 0, width, height, depth );
+        roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor);
 
         ROIData::IntegralImageType ii[numChannels];  // TODO: remove
 
@@ -87,8 +88,10 @@ extern "C"
         {
             Booster adaboost;
             adaboost.setModel( *((BoosterModel *) modelPtr) );
-
-            adaboost.predict( allROIs, &predMatrix );
+            if(useEarlyStopping != 0)
+                adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix );
+            else
+                adaboost.predictWithFeatureOrdering<false>( allROIs, &predMatrix );
         }
         catch( std::exception &e )
         {
@@ -107,8 +110,10 @@ extern "C"
                              int *width, int *height, int *depth,
                              int numStacks,
                              IntegralImagePixelType **chImgPtr,
-                             int numChannels,
-                             int numStumps, int debugOutput )
+                             int numChannels, double zAnisotropyFactor,
+                             int numStumps,
+                             int gtNegativeLabel, int gtPositiveLabel,
+                             int debugOutput )
     {
 
         BoosterModel *modelPtr = 0;
@@ -121,7 +126,9 @@ extern "C"
 
             for (int i=0; i < numStacks; i++)
             {
-                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i] );
+                rois[i].setGTNegativeSampleLabel(gtNegativeLabel);
+                rois[i].setGTPositiveSampleLabel(gtPositiveLabel);
+                rois[i].init( imgPtr[i], gtPtr[i], 0, 0, width[i], height[i], depth[i], zAnisotropyFactor);
 
                 for (int ch=0; ch < numChannels; ch++)
                 {

@@ -40,6 +40,36 @@ private:
 
 public:
 
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+
+    IntegralImage()
+    {}
+
+    IntegralImage(IntegralImage && o)
+    {
+        mData = std::move(o.mData);
+    }
+
+    IntegralImage(IntegralImage const & o)
+    {
+        mData.copyFrom(o.mData);
+    }
+
+    IntegralImage & operator=(IntegralImage const & o)
+    {
+        if(this != &o)
+            mData.copyFrom(o.mData);
+        return *this;
+    }
+
+    IntegralImage & operator=(IntegralImage && o)
+    {
+        if(this != &o)
+            mData = std::move(o.mData);
+        return *this;
+    }
+#endif
+
     // computes the integral image for src and saves results in dest
 	//  src and dest can have != scalar types
     template<typename TSrc, typename TDest>

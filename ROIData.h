@@ -396,6 +396,15 @@ public:
         mGTPositiveSampleLabel = 1;
     }
 
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+
+  private:
+    ROIData(ROIData const &);
+    ROIData & operator=(ROIData const &);
+  public:
+
+#endif
+
     // inverts orientation of voxel with ID idx
     inline void invertOrientation( unsigned idx )
     {

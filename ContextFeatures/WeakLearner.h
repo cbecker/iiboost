@@ -139,7 +139,11 @@ public:
     // }
 
     // if TSelectiveEvaluation = true  => you must pass a valid selectiveEval ptr
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+    template<typename PredOpType, bool TSelectiveEvaluation>
+#else
     template<typename PredOpType, bool TSelectiveEvaluation = false>
+#endif
     void classifySingleROIWithOp(
                            const ContextRelativePoses &poses,
                            const BoosterInputData &bid,

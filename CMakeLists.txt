@@ -47,7 +47,7 @@ if(IIBOOST_USE_OPENMP)
     # Merely adding this flag causes gcc to define the _OPENMP preprocessor definition.
     if(MSVC)
         # FIXME: support for OpenMP on Windows needs some fixes in the code
-        set(OPENMP_FLAG "")
+        message(STATUS "OpenMP support on Windows not yet implemented, ignoring IIBOOST_USE_OPENMP.")
         # set(OPENMP_FLAG "-openmp")
     else()
         set(OPENMP_FLAG "-fopenmp")

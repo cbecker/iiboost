@@ -140,7 +140,8 @@ if (NOT (APPLE OR MSVC))
 endif()
 
 install(TARGETS iiboost_python
-        RUNTIME DESTINATION ${IIBOOST_PYTHON_INSTALL_DIR}/iiboost)
+        RUNTIME DESTINATION ${IIBOOST_PYTHON_INSTALL_DIR}/iiboost
+        LIBRARY DESTINATION ${IIBOOST_PYTHON_INSTALL_DIR}/iiboost)
 install(FILES iiboost/__init__.py 
               iiboost/booster.py
         DESTINATION ${IIBOOST_PYTHON_INSTALL_DIR}/iiboost)

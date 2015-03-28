@@ -68,7 +68,7 @@ int main()
 
 	// ---- No early stopping
 	timer.reset();
-	adaboost.predict( allROIs, &predImg );
+	adaboost.predict<false>( allROIs, &predImg );
 	qDebug("Elapsed: %f", timer.elapsed());
 	predImg.save("/tmp/test.nrrd");
 
@@ -83,7 +83,7 @@ int main()
 	// --- now same tests, but with predict with double polarity
 	// ---- No early stopping
 	timer.reset();
-	adaboost.predictDoublePolarity( allROIs, &predImg );
+	adaboost.predictDoublePolarity<false>( allROIs, &predImg );
 	qDebug("Elapsed: %f", timer.elapsed());
 	predImg.save("/tmp/test-2pol.nrrd");
 

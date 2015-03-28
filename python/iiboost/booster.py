@@ -16,6 +16,7 @@
 ## along with this program. If not, see <http://www.gnu.org/licenses/>.         ##
 ##////////////////////////////////////////////////////////////////////////////////
 
+import sys
 import os
 import collections
 import numpy as np
@@ -24,7 +25,10 @@ import ctypes
 from exceptions import RuntimeError
 
 # libiiboost_python.so must reside in the same directory as this module.
-libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
+if sys.platform.startswith('win'):
+    libName = os.path.join(os.path.split(__file__)[0], "iiboost_python.dll")
+else:
+    libName = os.path.join(os.path.split(__file__)[0], "libiiboost_python.so")
 libPtr = ctypes.CDLL( libName )
 
 # gets 'prop' from every element in L

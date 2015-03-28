@@ -16,7 +16,11 @@ link_directories( ${ITK_LIBRARY_DIRS} )
 
 ## RANDOMLIB
 set(RANDOMLIB_DESTPATH "${CMAKE_BINARY_DIR}/randomlib")
-set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/libRandom.a")
+if(MSVC)
+    set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/Random.lib")
+else()
+    set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/libRandom.a")
+endif()
 set(RANDOMLIB_INCPATH "${RANDOMLIB_DESTPATH}/include")
 
 
@@ -41,7 +45,13 @@ set(IIBOOST_USE_OPENMP TRUE CACHE BOOL "Enable and compile IIBoost with OpenMP")
 set(OPENMP_FLAG "")
 if(IIBOOST_USE_OPENMP)
     # Merely adding this flag causes gcc to define the _OPENMP preprocessor definition.
-    set(OPENMP_FLAG "-fopenmp")
+    if(MSVC)
+        # FIXME: support for OpenMP on Windows needs some fixes in the code
+        set(OPENMP_FLAG "")
+        # set(OPENMP_FLAG "-openmp")
+    else()
+        set(OPENMP_FLAG "-fopenmp")
+    endif()
 endif()
 
 # Flags
@@ -53,9 +63,15 @@ set(CMAKE_EXE_LINKER_FLAGS_RELEASE_ALLSTATIC "-static-libgcc -static-libstdc++ -
 # C++11 with ITK
 add_definitions(-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0 -DVCL_CAN_STATIC_CONST_INIT_INT=0)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -O3 ${OPENMP_FLAG}")
-set(CMAKE_CXX_FLAGS_DEBUG "-std=c++11 -msse2 -msse3 -mssse3 -g ${OPENMP_FLAG}")
-
+if(MSVC)
+    # NOTE: The slic library uses a preprocessor flag "WINDOWS". Do NOT set
+    #       this flag for Visual Studio because it breaks everything
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPENMP_FLAG}")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -O3 ${OPENMP_FLAG}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++11 -msse2 -msse3 -mssse3 -g ${OPENMP_FLAG}")
+endif()
 
 if (NOT CMAKE_BUILD_TYPE)
 	message(STATUS "No build type selected, default to Release")
@@ -72,11 +88,14 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
 add_definitions( "-D\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\"rapidjson exception\\\");\"" )
 
 # Common libs needed for linking
-set(COMMON_LIBS ${ITK_LIBRARIES} randomlib stdc++)  # not sure why we need stdc++ here
+set(COMMON_LIBS ${ITK_LIBRARIES} randomlib)
 
+if(NOT MSVC)
+    set(COMMON_LIBS ${COMMON_LIBS} stdc++)  # not sure why we need stdc++ here
+endif()
 
 add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
-if (APPLE)
+if (APPLE OR MSVC)
     target_link_libraries( test ${COMMON_LIBS} )
 else()
     target_link_libraries( test ${COMMON_LIBS} rt)

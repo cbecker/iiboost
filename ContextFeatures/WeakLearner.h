@@ -77,6 +77,7 @@ public:
         mChannel = obj["channel"].GetInt();
         mPoseIdx = obj["poseIdx"].GetInt();
         mDescription = obj["description"].GetString();
+        return true;
     }
 
 #ifdef LIBCONFIGXX_VER_MAJOR

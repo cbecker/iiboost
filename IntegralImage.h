@@ -46,9 +46,8 @@ public:
     {}
 
     IntegralImage(IntegralImage && o)
-    {
-        mData = std::move(o.mData);
-    }
+        : mData(std::move(o.mData))
+    {}
 
     IntegralImage(IntegralImage const & o)
     {

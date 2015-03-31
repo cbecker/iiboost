@@ -77,6 +77,7 @@ public:
         mChannel = obj["channel"].GetInt();
         mPoseIdx = obj["poseIdx"].GetInt();
         mDescription = obj["description"].GetString();
+        return true;
     }
 
 #ifdef LIBCONFIGXX_VER_MAJOR
@@ -139,7 +140,11 @@ public:
     // }
 
     // if TSelectiveEvaluation = true  => you must pass a valid selectiveEval ptr
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+    template<typename PredOpType, bool TSelectiveEvaluation>
+#else
     template<typename PredOpType, bool TSelectiveEvaluation = false>
+#endif
     void classifySingleROIWithOp(
                            const ContextRelativePoses &poses,
                            const BoosterInputData &bid,

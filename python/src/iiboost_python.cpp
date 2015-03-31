@@ -4,7 +4,7 @@
 
 // error handling (name comes from Qt)
 #define qFatal(...) do { char errStr[8192]; sprintf(errStr, "ERROR: "); sprintf(errStr, __VA_ARGS__);sprintf(errStr, "\n"); \
- 					     throw std::runtime_error(errStr); } while(0)
+                          throw std::runtime_error(errStr); } while(0)
 #define qDebug(...) do { fprintf (stdout, __VA_ARGS__); fprintf(stdout, "\n"); fflush(stdout); } while(0)
 
 
@@ -20,46 +20,56 @@
 
 typedef float PredictionPixelType;
 
+#if defined(_MSC_VER)
+#   define DLL_EXPORT __declspec(dllexport)
+#else
+#   define DLL_EXPORT
+#endif
+
 extern "C"
 {
-	void freeModel( void *modelPtr )
-	{
-		if (modelPtr == 0)	return;
+    DLL_EXPORT
+    void freeModel( void *modelPtr )
+    {
+        if (modelPtr == 0)    return;
 
-		delete ((BoosterModel *)modelPtr);
-	}
+        delete ((BoosterModel *)modelPtr);
+    }
 
-	// returns py string object
-	PyObject * serializeModel( void *modelPtr )
-	{
-		std::string str;
-		((BoosterModel *)modelPtr)->serializeToString( &str );
+    // returns py string object
+    DLL_EXPORT
+    PyObject * serializeModel( void *modelPtr )
+    {
+        std::string str;
+        ((BoosterModel *)modelPtr)->serializeToString( &str );
 
-		return PyString_FromString( str.c_str() );
-	}
+        return PyString_FromString( str.c_str() );
+    }
 
-	// create model from serialized string
-	// returns 0 on error
-	void * deserializeModel( const char *modelString )
-	{
-		BoosterModel *model = new BoosterModel();
+    // create model from serialized string
+    // returns 0 on error
+    DLL_EXPORT
+    void * deserializeModel( const char *modelString )
+    {
+        BoosterModel *model = new BoosterModel();
 
-		if (!model->deserializeFromString( modelString ))
-		{
-			delete model;
-			return 0;
-		}
+        if (!model->deserializeFromString( modelString ))
+        {
+            delete model;
+            return 0;
+        }
 
-		return model;
-	}
+        return model;
+    }
 
 
     // Prediction for a single ROI
     //  Accepts an arbitrary number of integral images/channels.
     //  Assumes that predPtr is already allocated, of same size as imgPtr
     //  Returns 0 if ok
+    DLL_EXPORT
     int predictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
-    						  void *eigVecImgPtr,
+                              void *eigVecImgPtr,
                               int width, int height, int depth,
                               IntegralImagePixelType **chImgPtr,
                               int numChannels, double zAnisotropyFactor,
@@ -72,7 +82,7 @@ extern "C"
         // create roi for image, no GT available
         ROIData roi;
         roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor, 0.0, (const ROIData::RotationMatrixType *) eigVecImgPtr );
-        ROIData::IntegralImageType ii[numChannels];  // TODO: remove
+        std::unique_ptr<ROIData::IntegralImageType[]> ii(new ROIData::IntegralImageType[numChannels]);  // TODO: remove
 
         for (int ch=0; ch < numChannels; ch++)
         {
@@ -103,9 +113,10 @@ extern "C"
     }
 
     // input: multiple imgPtr, gtPtr (arrays of pointers)
-    //		  multiple img sizes
+    //          multiple img sizes
     // returns a BoosterModel *
     // -- BEWARE: this function is a mix of dirty tricks right now
+    DLL_EXPORT
     void * trainWithChannels( ImagePixelType **imgPtr, 
                              void **evecPtr,
                              GTPixelType **gtPtr,
@@ -122,9 +133,9 @@ extern "C"
 
         try
         {
-            ROIData rois[numStacks];					// TODO: not C++99 compatible?
+            std::unique_ptr<ROIData[]> rois(new ROIData[numStacks]);  // TODO: remove
             MultipleROIData allROIs;
-            ROIData::IntegralImageType ii[numStacks][numChannels];	// TODO: remove
+            std::unique_ptr<ROIData::IntegralImageType[]> ii(new ROIData::IntegralImageType[numStacks*numChannels]);  // TODO: remove
 
             for (int i=0; i < numStacks; i++)
             {
@@ -135,9 +146,9 @@ extern "C"
 
                 for (int ch=0; ch < numChannels; ch++)
                 {
-                   ii[i][ch].fromSharedData(chImgPtr[i*numChannels+ch], width[i], height[i], depth[i]);
+                   ii[i*numChannels+ch].fromSharedData(chImgPtr[i*numChannels+ch], width[i], height[i], depth[i]);
 
-                   rois[i].addII( ii[i][ch].internalImage().data() );
+                   rois[i].addII( ii[i*numChannels+ch].internalImage().data() );
                 }
 
                 allROIs.add( shared_ptr_nodelete(ROIData, &rois[i]) );
@@ -168,6 +179,7 @@ extern "C"
 
     // input: one imgPtr (float32)
     // returns an IntegralImage< IntegralImagePixelType = float > image
+    DLL_EXPORT 
     void computeIntegralImage( IntegralImagePixelType *rawImgPtr,
                                int width, int height, int depth,
                                IntegralImagePixelType *integralImagePtr)
@@ -190,6 +202,7 @@ extern "C"
     //        multiple img sizes
     // returns a BoosterModel *
     // -- BEWARE: this function is a mix of dirty tricks right now
+    DLL_EXPORT
     void * train( ImagePixelType **imgPtr, GTPixelType **gtPtr, 
                   int *width, int *height, int *depth,
                   int numStacks,
@@ -199,8 +212,8 @@ extern "C"
 
         try
         {
-            ROIData rois[numStacks];                    // TODO: not C++99 compatible?
-            ROIData::IntegralImageType ii[numStacks];   // TODO: remove
+            std::unique_ptr<ROIData[]> rois(new ROIData[numStacks]);  // TODO: remove
+            std::unique_ptr<ROIData::IntegralImageType[]> ii(new ROIData::IntegralImageType[numStacks]);  // TODO: remove
             MultipleROIData allROIs;
 
             for (int i=0; i < numStacks; i++)
@@ -242,6 +255,7 @@ extern "C"
     //        multiple img sizes
     // returns a BoosterModel *
     // -- BEWARE: this function is a mix of dirty tricks right now
+    DLL_EXPORT
     void * trainWithChannel( ImagePixelType **imgPtr, GTPixelType **gtPtr,
                              IntegralImagePixelType **chImgPtr,
                               int *width, int *height, int *depth,
@@ -251,7 +265,7 @@ extern "C"
         BoosterModel *modelPtr = 0;
         try
         {
-            ROIData rois[numStacks];                    // TODO: not C++99 compatible?
+            std::unique_ptr<ROIData[]> rois(new ROIData[numStacks]);  // TODO: remove
             MultipleROIData allROIs;
 
             for (int i=0; i < numStacks; i++)
@@ -291,6 +305,7 @@ extern "C"
     // Prediction
     //  Internally computes integral image from raw image, thus limited functionality.
     //  Assumes that predPtr is already allocated, of same size as imgPtr.
+    DLL_EXPORT
     void predict( void *modelPtr, ImagePixelType *imgPtr, int width, int height, int depth, PredictionPixelType *predPtr )
     {
         Matrix3D<PredictionPixelType> predMatrix;
@@ -312,13 +327,14 @@ extern "C"
         Booster adaboost;
         adaboost.setModel( *((BoosterModel *) modelPtr) );
 
-        adaboost.predict( allROIs, &predMatrix );
+        adaboost.predict<false>( allROIs, &predMatrix );
     }
 
 
     // Prediction
     //  Accepts a single integral image/channel, thus only to be used for testing
     //  Assumes that predPtr is already allocated, of same size as imgPtr
+    DLL_EXPORT
     void predictWithChannel( void *modelPtr, ImagePixelType *imgPtr,
                               IntegralImagePixelType *chImgPtr,
                               int width, int height, int depth,
@@ -342,11 +358,12 @@ extern "C"
         Booster adaboost;
         adaboost.setModel( *((BoosterModel *) modelPtr) );
 
-        adaboost.predict( allROIs, &predMatrix );
+        adaboost.predict<false>( allROIs, &predMatrix );
     }
 
 
     /*** Eigenvectors of Image wrappers ****/
+    DLL_EXPORT
     void *computeEigenVectorsOfHessianImage( ImagePixelType *imgPtr, 
                                       int width, int height, int depth,
                                       double zAnisotropyFactor,
@@ -366,6 +383,7 @@ extern "C"
         return rotImg->GetPixelContainer()->GetImportPointer();
     }
 
+    DLL_EXPORT
     void freeEigenVectorsOfHessianImage( void *ptr )
     {
         if ( ptr == 0 )

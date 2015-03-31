@@ -99,12 +99,21 @@ namespace AllEigenVectorsOfHessian
 
     using namespace std;
 
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+    #define showMsg(args) \
+        do { \
+            printf("\x1b[32m" "\x1b[1m["); \
+            printf(args); \
+            printf("]\x1b[0m\n" ); \
+        } while(0)
+#else
     #define showMsg(args...) \
         do { \
             printf("\x1b[32m" "\x1b[1m["); \
             printf(args); \
             printf("]\x1b[0m\n" ); \
         } while(0)
+#endif
 
     enum WhichEigVec
     {

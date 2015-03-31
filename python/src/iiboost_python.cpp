@@ -60,8 +60,8 @@ extern "C"
             return 0;
         }
 
-		return model;
-	}
+        return model;
+    }
     
     DLL_EXPORT
     PyObject* wlAlphas(void *modelPtr)

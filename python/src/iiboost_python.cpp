@@ -19,6 +19,8 @@
 #include "SmartPtrs.h"
 
 typedef float PredictionPixelType;
+
+// Pixel type for prediction of weak learners
 typedef char WLPredictionPixelType;
 
 #if defined(_MSC_VER)
@@ -134,12 +136,12 @@ extern "C"
     }
 
     DLL_EXPORT
-    int wlpredictWithChannels( void *modelPtr, ImagePixelType *imgPtr,
-                               void *eigVecImgPtr,
-                               int width, int height, int depth,
-                               IntegralImagePixelType **chImgPtr,
-                               int numChannels, double zAnisotropyFactor,
-                               WLPredictionPixelType **predPtr)
+    int predictIndividualWeakLearnersWithChannels( void *modelPtr, ImagePixelType *imgPtr,
+                                                   void *eigVecImgPtr,
+                                                   int width, int height, int depth,
+                                                   IntegralImagePixelType **chImgPtr,
+                                                   int numChannels, double zAnisotropyFactor,
+                                                   WLPredictionPixelType **predPtr)
     {
         BoosterModel* model = static_cast<BoosterModel*>(modelPtr);
         
@@ -167,7 +169,7 @@ extern "C"
         {
             Booster adaboost;
             adaboost.setModel(*model);
-            adaboost.wlpredict(allROIs, predMatrix);
+            adaboost.predictIndividualWeakLearners(allROIs, predMatrix);
         }
         catch( std::exception &e )
         {

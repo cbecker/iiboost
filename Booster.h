@@ -619,7 +619,7 @@ public:
             predMap.coeffRef(i) = std::max( predInvMap.coeff(i), predMap.coeff(i) );
     }
     
-    void wlpredict(MultipleROIData& rois,
+    void predictIndividualWeakLearners(MultipleROIData& rois,
                    Matrix3D<char> preds[],
                    unsigned roiNo = 0,
                    unsigned numThreads = IIBOOST_NUM_THREADS) const

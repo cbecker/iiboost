@@ -159,7 +159,7 @@ class Booster(object):
 		self.libPtr.train.restype = ctypes.c_void_p
 		self.libPtr.trainWithChannel.restype = ctypes.c_void_p
 		self.libPtr.trainWithChannels.restype = ctypes.c_void_p
-		self.libPtr.wlpredictWithChannels.restype = ctypes.c_int
+		self.libPtr.predictIndividualWeakLearnersWithChannels.restype = ctypes.c_int
 		self.libPtr.wlAlphas.restype = ctypes.py_object
 
 	# returns a string representation of the model
@@ -189,13 +189,13 @@ class Booster(object):
 		self.__init__()
 		self.deserialize(state)
 	
-	def number_of_weaklearners(self):
+	def numberOfWeakLearners(self):
 		if self.modelPtr is None:
 			raise ValueError("No model available") 
 		
 		return self.libPtr.numberOfWeakLearners(self.modelPtr)
 	
-	def wl_alphas(self):
+	def wlAlphas(self):
 		if self.modelPtr is None:
 			raise ValueError("No model available") 
 		
@@ -334,7 +334,7 @@ class Booster(object):
 
 		return pred
 
-	def wlpredictWithChannels(self, imgStack, eigVecImg, chStackList, zAnisotropyFactor):
+	def predictIndividualWeakLearnersWithChannels(self, imgStack, eigVecImg, chStackList, zAnisotropyFactor):
 		"""
 		Per-pixel predictions for every weak learner.
 		
@@ -352,13 +352,13 @@ class Booster(object):
 		height = imgStack.shape[1]
 		depth  = imgStack.shape[0]
 		
-		num_wl = self.number_of_weaklearners()
+		num_wl = self.numberOfWeakLearners()
 		
 		# pre-alloc prediction
 		pred = np.empty((num_wl,) + imgStack.shape, dtype=np.int8)
 		pred_c = as_carray([i.ctypes.data for i in pred], ctypes.c_void_p)
 		
-		ret = self.libPtr.wlpredictWithChannels(self.modelPtr,
+		ret = self.libPtr.predictIndividualWeakLearnersWithChannels(self.modelPtr,
 				ctypes.c_void_p(imgStack.ctypes.data),
 				ctypes.c_void_p(eigVecImg.ctypes.data),
 				ctypes.c_int(width), ctypes.c_int(height), ctypes.c_int(depth),

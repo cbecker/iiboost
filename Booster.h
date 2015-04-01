@@ -311,7 +311,6 @@ public:
             // predict weak learner on all data
             newWL.classifyMultipleROIs( mPoses, bid, weakPred, numThreads );
 
-
             // search for weight (alpha/linesearch)
             double alpha = 0;
 
@@ -618,6 +617,39 @@ public:
         // --------- check max, return max
         for (unsigned i=0; i < N; i++)
             predMap.coeffRef(i) = std::max( predInvMap.coeff(i), predMap.coeff(i) );
+    }
+    
+    void predictIndividualWeakLearners(MultipleROIData& rois,
+                   Matrix3D<char> preds[],
+                   unsigned roiNo = 0,
+                   unsigned numThreads = IIBOOST_NUM_THREADS) const
+    {
+        MultipleROIData singleRoiData;
+        singleRoiData.add( rois.ROIs[roiNo] );
+
+        BoosterInputData bd;
+        bd.init( shared_ptr_nodelete(MultipleROIData, &singleRoiData), true);
+
+        // make sure we are given right number of channels
+        if (mModel.numChannels() != bd.imgData->ROIs[0]->integralImages.size() )
+            throw std::runtime_error("Number of channels for prediction not the same as for training.");
+
+        const unsigned N = mModel.size();
+        for (unsigned i=0; i < N; i++)
+        {
+            typedef Eigen::Array<char, Eigen::Dynamic, 1> ArrayXi8;
+            typedef Eigen::Map<ArrayXi8, Eigen::Unaligned>  MapType;
+            typedef BoosterPredictOperatorNoAtomic<MapType>  OpType;
+            
+            Matrix3D<char> *pred = &preds[i];
+            pred->reallocSizeLike( singleRoiData.ROIs[0]->rawImage );
+            pred->fill(0);
+
+            MapType predMap(pred->data(), pred->numElem());
+            OpType op(predMap, 1);
+
+            mModel[i].wl.classifySingleROIWithOp<OpType, false>(mPoses, bd, op, numThreads);
+        }
     }
 
 };

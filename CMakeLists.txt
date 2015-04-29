@@ -16,23 +16,13 @@ link_directories( ${ITK_LIBRARY_DIRS} )
 
 ## RANDOMLIB
 set(RANDOMLIB_DESTPATH "${CMAKE_BINARY_DIR}/randomlib")
-set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/libRandom.a")
+if(MSVC)
+    set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/Random.lib")
+else()
+    set(RANDOMLIB_LIB "${RANDOMLIB_DESTPATH}/lib/libRandom.a")
+endif()
 set(RANDOMLIB_INCPATH "${RANDOMLIB_DESTPATH}/include")
 
-
-# If you want to comile the python wrapper, for Ilastik point PYTHON_BASE_PATH it to where Ilastik is
-option(BUILD_PYTHON_WRAPPER "Build the python wrapper" ON)
-if (BUILD_PYTHON_WRAPPER)
-    set(PYTHON_BASE_PATH "/usr/" CACHE FILEPATH "Python: path to base system")
-    
-    include_directories( ${PYTHON_BASE_PATH}/lib/python2.7/site-packages/numpy/core/include/numpy/ )
-    include_directories( ${PYTHON_BASE_PATH}/lib/python2.7/dist-packages/numpy/core/include/numpy/ )
-    include_directories( ${PYTHON_BASE_PATH}/include/python2.7 )
-
-    link_directories( ${PYTHON_BASE_PATH}/lib )
-
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC")
-endif()
 
 externalproject_add( 
     randomlibBuild
@@ -51,19 +41,37 @@ set_property(TARGET randomlib PROPERTY IMPORTED_LOCATION ${RANDOMLIB_LIB})
 
 include_directories(${RANDOMLIB_INCPATH})
 
+set(IIBOOST_USE_OPENMP TRUE CACHE BOOL "Enable and compile IIBoost with OpenMP")
+set(OPENMP_FLAG "")
+if(IIBOOST_USE_OPENMP)
+    # Merely adding this flag causes gcc to define the _OPENMP preprocessor definition.
+    if(MSVC)
+        # FIXME: support for OpenMP on Windows needs some fixes in the code
+        message(STATUS "OpenMP support on Windows not yet implemented, ignoring IIBOOST_USE_OPENMP.")
+        # set(OPENMP_FLAG "-openmp")
+    else()
+        set(OPENMP_FLAG "-fopenmp")
+    endif()
+endif()
 
 # Flags
 # static release is pretty generic, possibly not the fastest one though
-set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-std=c++11 -fopenmp -O3")
+set(CMAKE_CXX_FLAGS_RELEASE_ALLSTATIC "-std=c++11 -O3 ${OPENMP_FLAG}")
 set(CMAKE_EXE_LINKER_FLAGS_RELEASE_ALLSTATIC "-static-libgcc -static-libstdc++ -static")
 
 
 # C++11 with ITK
 add_definitions(-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0 -DVCL_CAN_STATIC_CONST_INIT_INT=0)
 
-set(CMAKE_CXX_FLAGS_RELEASE "-std=c++11 -fopenmp -O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-std=c++11 -fopenmp -msse2 -msse3 -mssse3 -g")
-
+if(MSVC)
+    # NOTE: The slic library uses a preprocessor flag "WINDOWS". Do NOT set
+    #       this flag for Visual Studio because it breaks everything
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPENMP_FLAG}")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -O3 ${OPENMP_FLAG}")
+    set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -std=c++11 -msse2 -msse3 -mssse3 -g ${OPENMP_FLAG}")
+endif()
 
 if (NOT CMAKE_BUILD_TYPE)
 	message(STATUS "No build type selected, default to Release")
@@ -77,14 +85,17 @@ include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/eigen )
 # RAPIDJSON, and make assert throw exception rather than raw assert
 #  TODO: may need correction to include <stdexcept>
 include_directories( ${ContextCueBoosting_SOURCE_DIR}/deps/rapidjson/include )
-add_definitions( -D"\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\""rapidjson exception\\\"");\"" )
+add_definitions( "-D\"RAPIDJSON_ASSERT(x)=if(!(x)) throw std::logic_error(\\\"rapidjson exception\\\");\"" )
 
 # Common libs needed for linking
-set(COMMON_LIBS ${ITK_LIBRARIES} randomlib stdc++)  # not sure why we need stdc++ here
+set(COMMON_LIBS ${ITK_LIBRARIES} randomlib)
 
+if(NOT MSVC)
+    set(COMMON_LIBS ${COMMON_LIBS} stdc++)  # not sure why we need stdc++ here
+endif()
 
 add_executable( test test.cpp slic/LKM.cpp slic/utils.cpp )
-if (APPLE)
+if (APPLE OR MSVC)
     target_link_libraries( test ${COMMON_LIBS} )
 else()
     target_link_libraries( test ${COMMON_LIBS} rt)
@@ -109,28 +120,12 @@ macro(_create_symlink TARGET SRC DEST)
 
 endmacro()
 
-## PYTHON wrapper
+
+# If you want to comile the python wrapper, for Ilastik point PYTHON_BASE_PATH it to where Ilastik is
+option(BUILD_PYTHON_WRAPPER "Build the python wrapper" ON)
 if (BUILD_PYTHON_WRAPPER)
-    add_library( iiboost_python SHARED python/iiboost_python.cpp slic/LKM.cpp slic/utils.cpp )
-
-    if (APPLE)
-        target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 )
-    else()
-        target_link_libraries( iiboost_python ${COMMON_LIBS} python2.7 rt)
-    endif()
-
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/testData/img.jlb" "img.jlb")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/testData/gt.jlb" "gt.jlb")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_test_raw.py"   "python_test_raw.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_computeII_example.py" "python_computeII_example.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_test_class.py" "python_test_class.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_light_test_class.py" "python_light_test_class.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_nochannels_test_class.py" "python_test_class.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/python_channels_test_class.py" "python_channels_test_class.py")
-    _create_symlink(iiboost_python "${CMAKE_SOURCE_DIR}/python/IIBoost.py" "IIBoost.py")
-
+    add_subdirectory(python)
 endif()
-
 
 ## extra tests
 if(EXISTS "${ContextCueBoosting_SOURCE_DIR}/mytest.cpp")

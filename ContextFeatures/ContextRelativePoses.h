@@ -29,6 +29,23 @@
 #include "BoosterInputData.h"
 #include "IntegralImage.h"  // for BoxPosition
 
+namespace isnannamespace {
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+
+    inline double round(double v)
+    {
+        return std::floor(v + 0.5);
+    }
+
+    inline bool isnan(double v)
+    {
+        return _isnan(v);
+    }
+
+#else
+    using std::isnan;
+#endif
+}
 
 struct ContextRelativePoses
 {
@@ -117,9 +134,9 @@ public:
             newPt.z = round(pt.coeff(2) + invZAnisotropyFactor * orient.coeff(2));
 
             //FIXME: shouldn't have to check for NaN
-            if (isnan(newPt.x)) newPt.x = 1;
-            if (isnan(newPt.y)) newPt.y = 1;
-            if (isnan(newPt.z)) newPt.z = 1;
+            if (isnannamespace::isnan(newPt.x)) newPt.x = 1;
+            if (isnannamespace::isnan(newPt.y)) newPt.y = 1;
+            if (isnannamespace::isnan(newPt.z)) newPt.z = 1;
 
             if (newPt.x < 1)    newPt.x = 1;
             if (newPt.y < 1)    newPt.y = 1;

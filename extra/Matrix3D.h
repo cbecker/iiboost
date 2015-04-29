@@ -61,9 +61,21 @@ public:
         realloc(w,h,d);
     }
 
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+
+private:
+    // no direct copy constructor, etc
+    Matrix3D( const Matrix3D<T>& rhs );
+    Matrix3D<T>& operator=( const Matrix3D<T>& rhs );
+public:
+
+#else
+
     // no direct copy constructor, etc
     Matrix3D( const Matrix3D<T>& rhs ) = delete;
     Matrix3D<T>& operator=( const Matrix3D<T>& rhs ) = delete;
+
+#endif
 
     // though we provide move semantics
     Matrix3D( Matrix3D<T>&& rhs )
@@ -85,6 +97,7 @@ public:
         mKeepOnDestr = rhs.mKeepOnDestr;
 
         rhs.mData = 0;
+        return *this;
     }
 
     // returns true if coords are of a valid pixel in the image

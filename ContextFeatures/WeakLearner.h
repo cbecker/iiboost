@@ -77,6 +77,7 @@ public:
         mChannel = obj["channel"].GetInt();
         mPoseIdx = obj["poseIdx"].GetInt();
         mDescription = obj["description"].GetString();
+        return true;
     }
 
 #ifdef LIBCONFIGXX_VER_MAJOR
@@ -139,7 +140,11 @@ public:
     // }
 
     // if TSelectiveEvaluation = true  => you must pass a valid selectiveEval ptr
+#if defined(_MSC_VER) && _MSC_VER <= 1700
+    template<typename PredOpType, bool TSelectiveEvaluation>
+#else
     template<typename PredOpType, bool TSelectiveEvaluation = false>
+#endif
     void classifySingleROIWithOp(
                            const ContextRelativePoses &poses,
                            const BoosterInputData &bid,
@@ -162,7 +167,9 @@ public:
 
         if (mInvert == false)
         {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < N; i++)
             {
                 if (TSelectiveEvaluation)
@@ -182,7 +189,9 @@ public:
                     predOp(i, false);
             }
         } else {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < N; i++)
             {
                 if (TSelectiveEvaluation)
@@ -228,7 +237,9 @@ public:
 
         if (mInvert == false)
         {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -253,7 +264,9 @@ public:
                     prediction[i] = negativeValue;
             }
         } else {
-            #pragma omp parallel for num_threads(numThreads)
+            #ifdef _OPENMP
+                #pragma omp parallel for num_threads(numThreads)
+            #endif
             for (unsigned int i=0; i < N; i++)
             {
                 BoxPosition box;
@@ -609,7 +622,9 @@ public:
         }
 
         // for each possible pose
-        #pragma omp parallel for schedule(dynamic)
+        #ifdef _OPENMP
+            #pragma omp parallel for schedule(dynamic)
+        #endif
         for (unsigned iPoseIdx = 0; iPoseIdx < numPosesToExplore; iPoseIdx++ )
         {
             // show some progress
@@ -652,7 +667,9 @@ public:
                                                                             mPoses, poseIdx, 
                                                                             mBID, mWeights,
                                                                             bin ), thr, inv );
-                    #pragma omp critical
+                    #ifdef _OPENMP
+                        #pragma omp critical
+                    #endif
                     {
                         numExploredWeakLearners++;
                         if ( err < minErr )

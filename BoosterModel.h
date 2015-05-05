@@ -63,7 +63,7 @@ struct BoosterComponent
             return false;
 
         alpha = obj["alpha"].GetDouble();
-        wl.deserialize( obj["weaklearner"] );
+        return wl.deserialize( obj["weaklearner"] );
     }
 };
 
@@ -153,7 +153,7 @@ struct BoosterModel
 		try{
 			rapidjson::FileStream fStream(f);
 			serialize(fStream);
-		} catch( std::exception& e )
+		} catch( std::exception&)
 		{
 			fclose(f);
 			return false;
@@ -198,7 +198,7 @@ struct BoosterModel
 			doc.ParseStream<0>( fStream );
 
 			retVal = deserialize( doc );
-		} catch( std::exception& e )
+		} catch( std::exception& )
 		{
 			fclose(f);
 			return false;

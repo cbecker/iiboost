@@ -28,7 +28,16 @@ externalproject_add(
     randomlibBuild
     GIT_REPOSITORY http://git.code.sf.net/p/randomlib/code
     GIT_TAG "r1.6"
-    CMAKE_ARGS "-DCMAKE_INSTALL_PREFIX=${RANDOMLIB_DESTPATH}" "-DCMAKE_BUILD_TYPE=RELEASE" "-DMAINTAINER=OFF" "-DRANDOM_SHARED_LIB=OFF" "-DCMAKE_C_FLAGS=-fpic" "-DCMAKE_CXX_FLAGS=-fpic" "-DDISABLE_BOOST=ON" "-DRANDOMLIB_DOCUMENTATION=OFF"
+    CMAKE_ARGS "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+               "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
+               "-DCMAKE_INSTALL_PREFIX=${RANDOMLIB_DESTPATH}"
+               "-DCMAKE_BUILD_TYPE=RELEASE"
+               "-DMAINTAINER=OFF"
+               "-DRANDOM_SHARED_LIB=OFF"
+               "-DCMAKE_C_FLAGS=-fpic"
+               "-DCMAKE_CXX_FLAGS=-fpic"
+               "-DDISABLE_BOOST=ON"
+               "-DRANDOMLIB_DOCUMENTATION=OFF"
     UPDATE_COMMAND "" )
 
 add_library(randomlib STATIC IMPORTED DEPENDS)

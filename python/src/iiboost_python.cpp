@@ -146,14 +146,14 @@ extern "C"
         BoosterModel* model = static_cast<BoosterModel*>(modelPtr);
         
         int numWL = model->size();
-        Matrix3D<WLPredictionPixelType> predMatrix[numWL]; // TODO: remove
+        std::unique_ptr<Matrix3D<WLPredictionPixelType>[]> predMatrix(new Matrix3D<WLPredictionPixelType>[numWL]);
         for(int i=0; i < numWL; ++i)
             predMatrix[i].fromSharedData(predPtr[i], width, height, depth);
         
         // create roi for image, no GT available
         ROIData roi;
         roi.init( imgPtr, 0, 0, 0, width, height, depth, zAnisotropyFactor, 0.0, (const ROIData::RotationMatrixType *) eigVecImgPtr );
-        ROIData::IntegralImageType ii[numChannels];  // TODO: remove
+        std::unique_ptr<ROIData::IntegralImageType[]> ii(new ROIData::IntegralImageType[numChannels]);
 
         for (int ch=0; ch < numChannels; ch++)
         {
@@ -169,7 +169,7 @@ extern "C"
         {
             Booster adaboost;
             adaboost.setModel(*model);
-            adaboost.predictIndividualWeakLearners(allROIs, predMatrix);
+            adaboost.predictIndividualWeakLearners(allROIs, predMatrix.get());
         }
         catch( std::exception &e )
         {

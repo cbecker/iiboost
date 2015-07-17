@@ -129,9 +129,9 @@ public:
 
             FloatPoint3D newPt;
             
-            newPt.x = round(pt.coeff(0) + orient.coeff(0));
-            newPt.y = round(pt.coeff(1) + orient.coeff(1));
-            newPt.z = round(pt.coeff(2) + invZAnisotropyFactor * orient.coeff(2));
+            newPt.x = isnannamespace::round(pt.coeff(0) + orient.coeff(0));
+            newPt.y = isnannamespace::round(pt.coeff(1) + orient.coeff(1));
+            newPt.z = isnannamespace::round(pt.coeff(2) + invZAnisotropyFactor * orient.coeff(2));
 
             //FIXME: shouldn't have to check for NaN
             if (isnannamespace::isnan(newPt.x)) newPt.x = 1;

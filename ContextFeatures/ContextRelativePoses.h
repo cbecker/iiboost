@@ -44,6 +44,7 @@ namespace isnannamespace {
 
 #else
     using std::isnan;
+    using std::round;
 #endif
 }
 

@@ -57,6 +57,15 @@ def propListToCArray( L, prop, cArrayElType ):
 
 	return arr
 
+## --- To restrict evaluation to a ROI
+class ROICoordinates(object):
+	""" Used for restricting the prediction inside a specific ROI of a stack """
+	""" You can manually fill in the values of x1, y1, z1, and x2, y2 and z2 """
+	def __init__(self):
+		self.x1 = self.x2 = 0
+		self.y1 = self.y2 = 0
+		self.z1 = self.z2 = 0
+
 
 ## --- For orientation, computes 9 float values per pixel ---
 class EigenVectorsOfHessianImage(np.ndarray):
@@ -291,13 +300,16 @@ class Booster(object):
 			self.modelPtr = newModelPtr
 
 
-	def predictWithChannels( self, imgStack, eigVecImg, chStackList, zAnisotropyFactor, useEarlyStopping = True):
+	def predictWithChannels( self, imgStack, eigVecImg, chStackList, zAnisotropyFactor,
+							 useEarlyStopping = True, subROI = None):
 		""" Per-pixel prediction for single ROI/image 	"""
 		"""   imgStack: 		 image itself 					 """
 		"""   eigVecImg:		 an EigenVectorsOfHessianImage instance """
 		"""   chStackList:  	 list of integral images/channels """
 		"""   zAnisotropyFactor: ratio between z voxel size and x/y voxel size """
 		"""   useEarlyStopping:  speeds up prediction considerably by approximating the prediction score """
+		"""   subROI:			 of type ROICoordinates, restricts evaluation to a specific ROI, if not None """
+		"""    					 NOTE: subROI only works if useEarlyStopping = True """
 		
 		self.__check_predict_params(imgStack, eigVecImg, chStackList)
 
@@ -317,6 +329,16 @@ class Booster(object):
 		else:
 				useEarlyStoppa = ctypes.c_int(0)
 
+
+		# roi available? we need to mangle dimensions as well
+		useROI = 0
+		x1 = x2 = y1 = y2 = z1 = z2 = 0
+		if subROI != None and isinstance(subROI, ROICoordinates):
+			useROI = 1
+			z1,y1,x1 = subROI.x1, subROI.y1, subROI.z1
+			z2,y2,x2 = subROI.x2, subROI.y2, subROI.z2
+
+
 		# Run prediction
 		ret = self.libPtr.predictWithChannels( self.modelPtr,
 				ctypes.c_void_p(imgStack.ctypes.data),
@@ -325,6 +347,8 @@ class Booster(object):
 				chans,
 				ctypes.c_int( len(chans) ), ctypes.c_double(zAnisotropyFactor),
 				useEarlyStoppa,
+				ctypes.c_int(useROI), ctypes.c_int(x1), ctypes.c_int(y1), ctypes.c_int(z1),
+				ctypes.c_int(x2), ctypes.c_int(y2), ctypes.c_int(z2),
 				ctypes.c_void_p(pred.ctypes.data) )
 
 		ret = ctypes.c_int(ret)

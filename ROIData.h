@@ -33,6 +33,18 @@
 
 #include "auxItk/AllEigenVectorsOfHessian.h"
 
+// specifies a ROI within an image
+struct ROICoordinates
+{
+    unsigned x1,y1,z1;  // ROI includes both 1 and 2
+    unsigned x2,y2,z2;
+
+    void printInfo()
+    {
+        std::cout << "subROI: " << x1 << " " << y1 << " " << z1 << "  ==>  " << x2 << " " << y2 << " " << z2 << std::endl;
+    }
+};
+
 /**
  * Holds information for each Region of Interest, namely:
  *      - Rotation matrices

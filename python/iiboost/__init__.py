@@ -1,1 +1,1 @@
-from booster import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage
+from booster import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage, ROICoordinates

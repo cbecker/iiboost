@@ -94,6 +94,26 @@ int main()
 	qDebug("Elapsed early stop: %f", timer.elapsed());
 	predImg.save("/tmp/test-2pol-earlystop.nrrd");
 
+	// with early stopping + feature ordering
+	timer.reset();
+	adaboost.predictWithFeatureOrdering<true>( allROIs, &predImg );
+	qDebug("Elapsed feat ordering: %f", timer.elapsed());
+	predImg.save("/tmp/test-featord.nrrd");
+
+	// with ROI for single slice + early stopping + feature ordering
+	timer.reset();
+	ROICoordinates subROI;
+	subROI.x1 = subROI.y1 = 0;
+	subROI.z1 = subROI.z2 = img.depth() / 2;
+	subROI.x2 = img.width() - 1;
+	subROI.y2 = img.height() - 1;
+
+	subROI.printInfo();
+
+	adaboost.predictWithFeatureOrdering<true>( allROIs, &predImg, 0, IIBOOST_NUM_THREADS, &subROI );
+	qDebug("Elapsed ROI + feat ordering: %f", timer.elapsed());
+	predImg.save("/tmp/test-roi-featord.nrrd");
+
 	// save JSON model
 	if (!adaboost.saveModelToFile( "/tmp/model.json" ))
 		std::cout << "Error saving JSON model" << std::endl;

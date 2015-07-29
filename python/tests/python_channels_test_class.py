@@ -2,7 +2,7 @@
 # Test for the IIBoost wrapper class
 ###################################################################################
 
-from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage
+from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage, ROICoordinates
 from sklearn.externals import joblib	# to load data
 
 import numpy as np
@@ -47,16 +47,28 @@ model.trainWithChannels( [img1,img2,img3], [eigV1, eigV2, eigV3], [gt1,gt2,gt3],
 
 pred = model.predictWithChannels( img, eigV1, channels1, zAnisotropyFactor, useEarlyStopping=True)
 
+roi = ROICoordinates()
+roi.x2 = img.shape[0] - 1
+roi.y2 = img.shape[1] - 1
+roi.z1 = roi.z2 = img.shape[2] / 2
+
+predSingleSlice = model.predictWithChannels( img, eigV1, channels1, zAnisotropyFactor, useEarlyStopping=True, subROI=roi)
+
+
 # show image & prediction side by side
 plt.ion()
 plt.figure()
 
-plt.subplot(1,2,1)
-plt.imshow(img[:,:,10],cmap="gray")
+plt.subplot(1,3,1)
+plt.imshow(img[:,:,roi.z1],cmap="gray")
 plt.title("Click on the image to exit")
 
-plt.subplot(1,2,2)
-plt.imshow(pred[:,:,10],cmap="gray")
+plt.subplot(1,3,2)
+plt.imshow(pred[:,:,roi.z1],cmap="gray")
+plt.title("Click on the image to exit")
+
+plt.subplot(1,3,3)
+plt.imshow(predSingleSlice[:,:,roi.z1],cmap="gray")
 plt.title("Click on the image to exit")
 
 plt.ginput(1)

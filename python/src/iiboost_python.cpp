@@ -97,6 +97,7 @@ extern "C"
                               IntegralImagePixelType **chImgPtr,
                               int numChannels, double zAnisotropyFactor,
                               int useEarlyStopping,
+                              int useROI, int x1, int y1, int z1, int x2, int y2, int z2, // used only if useROI != 0
                               PredictionPixelType *predPtr )
     {
         Matrix3D<PredictionPixelType> predMatrix;
@@ -122,7 +123,18 @@ extern "C"
             Booster adaboost;
             adaboost.setModel( *((BoosterModel *) modelPtr) );
             if(useEarlyStopping != 0)
-                adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix );
+            {
+                if (useROI)
+                {
+                    ROICoordinates subROI;
+                    subROI.x1 = x1; subROI.y1 = y1; subROI.z1 = z1;
+                    subROI.x2 = x2; subROI.y2 = y2; subROI.z2 = z2;
+                    
+                    adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix, 0, IIBOOST_NUM_THREADS, &subROI );
+                }
+                else
+                    adaboost.predictWithFeatureOrdering<true>( allROIs, &predMatrix );
+            }
             else
                 adaboost.predictWithFeatureOrdering<false>( allROIs, &predMatrix );
         }

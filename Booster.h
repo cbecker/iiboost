@@ -428,10 +428,14 @@ public:
 #else
     template<bool TUseEarlyStopping = false>
 #endif
+    // subROI, if not null, specifies that only a sub-region should be evaluated
+    // This is useful for the ilastik interface to avoid predicting the whole stack
+    //   IMPORTANT: it only works if early stopping is true
     void predictWithFeatureOrdering( MultipleROIData &rois,
                   Matrix3D<float> *pred,
                   unsigned roiNo = 0,
-                  unsigned numThreads = IIBOOST_NUM_THREADS ) const
+                  unsigned numThreads = IIBOOST_NUM_THREADS,
+                  const ROICoordinates *subROI = nullptr ) const
     {
         // for later use
         const unsigned earlyStopCheckEvery = mEarlyStopCheckEvery;
@@ -461,7 +465,40 @@ public:
         MapType predMap( pred->data(), pred->numElem() );
 
         if ( TUseEarlyStopping )
-            earlyStopVector.resize( predMap.size(), true );
+        {
+            if (subROI == nullptr)
+                earlyStopVector.resize( predMap.size(), true );
+            else
+            {
+                // by default no evaluate
+                earlyStopVector.resize( predMap.size(), false );
+
+                // except inside the ROI
+
+                // range check
+                const unsigned x1 = subROI->x1; const unsigned y1 = subROI->y1; const unsigned z1 = subROI->z1;
+                const unsigned x2 = std::min( singleRoiData.ROIs[0]->rawImage.width() - 1, subROI->x2 );
+                const unsigned y2 = std::min( singleRoiData.ROIs[0]->rawImage.height() - 1, subROI->y2 );
+                const unsigned z2 = std::min( singleRoiData.ROIs[0]->rawImage.depth() - 1, subROI->z2 );
+
+                // this is very dependent on the order we use for storage
+                // (see Matrix3D.h)
+                const unsigned sz = singleRoiData.ROIs[0]->rawImage.width() * singleRoiData.ROIs[0]->rawImage.height();
+                const unsigned width = singleRoiData.ROIs[0]->rawImage.width();
+                for (unsigned z=z1; z <= z2; z++ )
+                {
+                    unsigned zOff = z * sz + y1 * width;
+
+                    for (unsigned y=0; y <= y2 - y1; y++ )
+                    {
+                        for (unsigned x=x1; x <= x2; x++ )
+                            earlyStopVector[ zOff + x ] = true;
+
+                        zOff += width;
+                    }
+                }
+            }
+        }
 
 
         // separate according to feature ID

@@ -3,7 +3,7 @@
 ###################################################################################
 
 from iiboost import Booster, EigenVectorsOfHessianImage, computeEigenVectorsOfHessianImage, computeIntegralImage, ROICoordinates
-from sklearn.externals import joblib	# to load data
+from sklearn.externals import joblib    # to load data
 
 import numpy as np
 

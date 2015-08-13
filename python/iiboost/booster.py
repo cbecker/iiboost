@@ -100,7 +100,7 @@ def computeEigenVectorsOfHessianImage( imgStack, zAnisotropyFactor, sigma=3.5 ):
     if not imgStack.flags["C_CONTIGUOUS"]:
         raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
 
-    if not imgStack.ndim != 3:
+    if imgStack.ndim != 3:
         raise RuntimeError("image must be 3D.")
     
     # 'mangle' dimensions to deal with storage order (assuming C-style)

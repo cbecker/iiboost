@@ -103,7 +103,7 @@ def computeEigenVectorsOfHessianImage( imgStack, zAnisotropyFactor, sigma=3.5 ):
     if imgStack.ndim != 3:
         raise RuntimeError("image must be 3D.")
     
-    # 'mangle' dimensions to deal with storage order (assuming C-style)
+    # Data is C-style memory layout (z-y-x)
     width = imgStack.shape[2]
     height = imgStack.shape[1]
     depth = imgStack.shape[0]
@@ -131,7 +131,7 @@ def computeIntegralImage( input_image ):
     if not input_image.flags["C_CONTIGUOUS"]:
         raise RuntimeError("image must be C_CONTIGUOUS, and must be provided in z-y-x order.")
 
-    # 'mangle' dimensions to deal with storage order (assuming C-style)
+    # Data is C-style memory layout (z-y-x)
     width = input_image.shape[2]
     height = input_image.shape[1]
     depth = input_image.shape[0]
@@ -263,7 +263,7 @@ class Booster(object):
                     if 0 in img.shape or 0 in gt.shape or 0 in ch.shape or 0 in eigvec.shape:
                         raise RuntimeError("One of the inputs has a zero shape.")
 
-            # 'mangle' dimensions to deal with storage order (assuming C-style)
+            # Data is C-style memory layout (z-y-x)
             width  = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
             height = propToCArray( imgStackList, "shape[1]", ctypes.c_int )
             depth  = propToCArray( imgStackList, "shape[0]", ctypes.c_int )
@@ -316,7 +316,7 @@ class Booster(object):
         # C array of pointers
         chans = propToCArray(  chStackList, "ctypes.data", ctypes.c_void_p )
 
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        # Data is C-style memory layout (z-y-x)
         width  = imgStack.shape[2]
         height = imgStack.shape[1]
         depth  = imgStack.shape[0]
@@ -329,15 +329,13 @@ class Booster(object):
         else:
                 useEarlyStoppa = ctypes.c_int(0)
 
-
-        # roi available? we need to mangle dimensions as well
         useROI = 0
         x1 = x2 = y1 = y2 = z1 = z2 = 0
-        if subROI != None and isinstance(subROI, ROICoordinates):
+        if subROI is not None:
+            assert isinstance(subROI, ROICoordinates)
             useROI = 1
-            z1,y1,x1 = subROI.x1, subROI.y1, subROI.z1
-            z2,y2,x2 = subROI.x2, subROI.y2, subROI.z2
-
+            x1,y1,z1 = subROI.x1, subROI.y1, subROI.z1
+            x2,y2,z2 = subROI.x2, subROI.y2, subROI.z2
 
         # Run prediction
         ret = self.libPtr.predictWithChannels( self.modelPtr,
@@ -472,7 +470,7 @@ class Booster(object):
             if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")):
                 raise RuntimeError("image and ground truth must be of uint8 type")
 
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        # Data is C-style memory layout (z-y-x)
         width = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
         height = propToCArray( imgStackList, "shape[1]", ctypes.c_int )
         depth = propToCArray( imgStackList, "shape[0]", ctypes.c_int )
@@ -518,7 +516,7 @@ class Booster(object):
             if (img.dtype != np.dtype("uint8")) or (gt.dtype != np.dtype("uint8")) or (ch.dtype != np.dtype("float32")):
                 raise RuntimeError("image and ground truth must be of uint8 type and channels of float32 type")
 
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        # Data is C-style memory layout (z-y-x)
         width  = propToCArray( imgStackList, "shape[2]", ctypes.c_int )
         height = propToCArray( imgStackList, "shape[1]", ctypes.c_int )
         depth  = propToCArray( imgStackList, "shape[0]", ctypes.c_int )
@@ -558,7 +556,7 @@ class Booster(object):
         if imgStack.dtype != np.dtype("uint8"):
             raise RuntimeError("image must be of uint8 type")
 
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        # Data is C-style memory layout (z-y-x)
         width  = imgStack.shape[2]
         height = imgStack.shape[1]
         depth  = imgStack.shape[0]
@@ -592,7 +590,7 @@ class Booster(object):
         if chStack.dtype != np.dtype("float32"):
             raise RuntimeError("Channel must be of float32 type")
 
-        # 'mangle' dimensions to deal with storage order (assuming C-style)
+        # Data is C-style memory layout (z-y-x)
         width  = imgStack.shape[2]
         height = imgStack.shape[1]
         depth  = imgStack.shape[0]

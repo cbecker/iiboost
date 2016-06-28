@@ -136,6 +136,19 @@ public:
 
     void setGTNegativeSampleLabel( GTPixelType lbl ) { mGTNegativeSampleLabel = lbl; }
     void setGTPositiveSampleLabel( GTPixelType lbl ) { mGTPositiveSampleLabel = lbl; }
+    
+    // removes NaN and Inf from rotation matrices, if any
+    // This may be needed because ITK may produce such weird output
+    // numElemen is how many rotation matrices are stored in _rotMatrices
+    static void removeRotationMatrixNaNs( RotationMatrixType *_rotMatrices, long int numElem )
+    {
+        for (long int i=0; i < numElem; i++)
+        {
+            auto total = _rotMatrices[i].sum();
+            if ( isnan(total) || isinf(total) )
+                _rotMatrices[i].setIdentity();
+        }
+    }
 
     // computes rotation matrices from raw image
     void updateRotationMatrices( const float rotHessianSigma )
@@ -145,9 +158,13 @@ public:
             AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
                 rotHessianSigma, mZAnisotropyFactor, rawImage.asItkImage(), 
                 AllEigenVectorsOfHessian::EByMagnitude );
+        
+        // remove NaNs if any
+        RotationMatrixType *rmPtr = (RotationMatrixType *) rotMatricesImg->GetPixelContainer()->GetImportPointer();
+        removeRotationMatrixNaNs( rmPtr, rotMatricesImg->GetPixelContainer()->Size() );
 
         // convert pointers
-        rotMatrices = (const RotationMatrixType *) rotMatricesImg->GetPixelContainer()->GetImportPointer();
+        rotMatrices = (const RotationMatrixType *) rmPtr;
     }
 
 #if USE_MEANVAR_NORMALIZATION
@@ -281,6 +298,7 @@ public:
     // initialize from images, using move semantics
     // (except if cachedRotMatrices is provided, which is a pointer
     //   and it must remain valid for training and/or prediction )
+    // If used, make sure cachedRotMatrices doesn't contain any NaNs or Infs
     void init( Matrix3D<ImagePixelType> &&rawImg, 
                Matrix3D<ImagePixelType> &&gtImg, 
                const float zAnisotropyFactor = 1.0,

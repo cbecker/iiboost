@@ -457,10 +457,15 @@ extern "C"
                 AllEigenVectorsOfHessian::allEigenVectorsOfHessian<ImagePixelType>( 
                     sigma, zAnisotropyFactor, rawImg.asItkImage(), 
                     AllEigenVectorsOfHessian::EByMagnitude );
+                    
+        // remove NaNs if any
+        typedef ROIData::RotationMatrixType RotationMatrixType;
+        RotationMatrixType *rmPtr = (RotationMatrixType *) rotImg->GetPixelContainer()->GetImportPointer();
+        ROIData::removeRotationMatrixNaNs( rmPtr, rotImg->GetPixelContainer()->Size() );
 
         rotImg->GetPixelContainer()->SetContainerManageMemory(false);
 
-        return rotImg->GetPixelContainer()->GetImportPointer();
+        return rmPtr;
     }
 
     DLL_EXPORT

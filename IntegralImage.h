@@ -69,6 +69,16 @@ public:
     }
 #endif
 
+    // Removes NaN and Inf if present, since they would make our accumulator instantly invalid
+    template<typename S>
+    static inline S removeNaN( S val )
+    {
+    if ( isnan(val) || isinf(val) )
+        return (S)0;
+    else
+        return val;
+    }
+
     // computes the integral image for src and saves results in dest
 	//  src and dest can have != scalar types
     template<typename TSrc, typename TDest>
@@ -81,7 +91,7 @@ public:
         {
             TDest accum = 0;
             for (unsigned x=0; x < src.width(); x++) {
-                accum += src(x,0,z);
+                accum += removeNaN( src(x,0,z) );
                 dest(x,0,z) = accum;
             }
         }
@@ -93,7 +103,7 @@ public:
             {
                 TDest yAccum = 0;
                 for (unsigned x=0; x < src.width(); x++) {
-                    yAccum += src(x,y,z);
+                    yAccum += removeNaN( src(x,y,z) );
                     dest(x,y,z) = yAccum + dest(x, y-1, z);
                 }
             }

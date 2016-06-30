@@ -276,9 +276,9 @@ struct HistogramMeanThresholdData
             newPt.z = round(pt.z + invZAnisotropyFactor * orient.coeff(2));
 
             //FIXME //TODO quick bug patch
-           if (isnan(newPt.x)) newPt.x = 1;
-           if (isnan(newPt.y)) newPt.y = 1;
-           if (isnan(newPt.z)) newPt.z = 1;
+           if (std::isnan(newPt.x)) newPt.x = 1;
+           if (std::isnan(newPt.y)) newPt.y = 1;
+           if (std::isnan(newPt.z)) newPt.z = 1;
 
             if (newPt.x < 1)    newPt.x = 1;
             if (newPt.y < 1)    newPt.y = 1;

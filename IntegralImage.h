@@ -73,7 +73,7 @@ public:
     template<typename S>
     static inline S removeNaN( S val )
     {
-    if ( isnan(val) || isinf(val) )
+    if ( std::isnan(val) || std::isinf(val) )
         return (S)0;
     else
         return val;

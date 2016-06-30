@@ -145,7 +145,7 @@ public:
         for (long int i=0; i < numElem; i++)
         {
             auto total = _rotMatrices[i].sum();
-            if ( isnan(total) || isinf(total) )
+            if ( std::isnan(total) || std::isinf(total) )
                 _rotMatrices[i].setIdentity();
         }
     }

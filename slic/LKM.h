@@ -5,6 +5,8 @@
 // Email: firstname.lastname@epfl.ch
 //////////////////////////////////////////////////////////////////////
 
+#include <algorithm>
+
 #if !defined(_LKM_H_INCLUDED_)
 #define _LKM_H_INCLUDED_
 

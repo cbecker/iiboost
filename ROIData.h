@@ -19,6 +19,7 @@
 #ifndef _ROI_DATA_H_
 #define _ROI_DATA_H_
 
+#include <cmath>
 #include <Eigen/Dense>
 #include <vector>
 

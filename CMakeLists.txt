@@ -23,21 +23,24 @@ else()
 endif()
 set(RANDOMLIB_INCPATH "${RANDOMLIB_DESTPATH}/include")
 
-
-externalproject_add( 
-    randomlibBuild
-    GIT_REPOSITORY http://git.code.sf.net/p/randomlib/code
-    GIT_TAG "r1.6"
-    CMAKE_ARGS "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
+set(RANDOMLIB_CMAKE_ARGS "-DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}"
                "-DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}"
                "-DCMAKE_INSTALL_PREFIX=${RANDOMLIB_DESTPATH}"
                "-DCMAKE_BUILD_TYPE=RELEASE"
                "-DMAINTAINER=OFF"
                "-DRANDOM_SHARED_LIB=OFF"
-               "-DCMAKE_C_FLAGS=-fpic"
-               "-DCMAKE_CXX_FLAGS=-fpic"
                "-DDISABLE_BOOST=ON"
-               "-DRANDOMLIB_DOCUMENTATION=OFF"
+               "-DRANDOMLIB_DOCUMENTATION=OFF")
+
+if(NOT MSVC)
+    set(RANDOMLIB_CMAKE_ARGS ${RANDOMLIB_CMAKE_ARGS} "-DCMAKE_C_FLAGS=-fpic" "-DCMAKE_CXX_FLAGS=-fpic")
+endif()
+
+externalproject_add( 
+    randomlibBuild
+    GIT_REPOSITORY http://git.code.sf.net/p/randomlib/code
+    GIT_TAG "r1.6"
+    CMAKE_ARGS ${RANDOMLIB_CMAKE_ARGS}
     UPDATE_COMMAND "" )
 
 add_library(randomlib STATIC IMPORTED DEPENDS)
@@ -75,7 +78,7 @@ add_definitions(-DVCL_CAN_STATIC_CONST_INIT_FLOAT=0 -DVCL_CAN_STATIC_CONST_INIT_
 if(MSVC)
     # NOTE: The slic library uses a preprocessor flag "WINDOWS". Do NOT set
     #       this flag for Visual Studio because it breaks everything
-    ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE)
+    ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE -D_SCL_SECURE_NO_DEPRECATE -DNOMINMAX)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OPENMP_FLAG}")
 else()
     set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -std=c++11 -O3 ${OPENMP_FLAG}")

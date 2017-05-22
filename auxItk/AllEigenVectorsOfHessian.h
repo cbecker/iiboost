@@ -99,7 +99,7 @@ namespace AllEigenVectorsOfHessian
 
     using namespace std;
 
-#if defined(_MSC_VER) && _MSC_VER <= 1700
+#if defined(_MSC_VER)
     #define showMsg(args) \
         do { \
             printf("\x1b[32m" "\x1b[1m["); \

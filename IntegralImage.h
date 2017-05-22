@@ -20,6 +20,7 @@
 #define INTEGRALIMAGE_H
 
 #include <Matrix3D.h>
+#include <cmath>
 #include <vector>
 
 // a box of center (x,y,z), radius (rx,ry,rz)
@@ -73,7 +74,7 @@ public:
     template<typename S>
     static inline S removeNaN( S val )
     {
-    if ( std::isnan(val) || std::isinf(val) )
+    if ( std::isnan((double)val) || std::isinf((double)val) )
         return (S)0;
     else
         return val;

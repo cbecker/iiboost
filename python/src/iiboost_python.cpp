@@ -46,7 +46,7 @@ extern "C"
         std::string str;
         ((BoosterModel *)modelPtr)->serializeToString( &str );
 
-        return PyString_FromString( str.c_str() );
+        return PyBytes_FromString( str.c_str() );
     }
 
     // create model from serialized string
